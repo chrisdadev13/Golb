@@ -2,15 +2,10 @@ import { Loader, Play, X } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui/avatar";
 import { Badge } from "#/components/ui/badge";
+import type { Doc } from "../../convex/_generated/dataModel";
 
 interface CourseCardProps {
-  course: {
-    _id: string;
-    title: string;
-    description: string;
-    status: "ready" | "generating" | "failed";
-    _creationTime: string;
-  };
+  course: Doc<"courses">;
   index: number;
 }
 
@@ -64,14 +59,16 @@ export function CourseCard({ course, index }: CourseCardProps) {
           <div className="flex items-center justify-between">
             <Avatar className="size-4 rounded-full border border-gray-300">
               <AvatarImage
-                src={`https://api.dicebear.com/9.x/notionists/svg?seed=${course._id}`}
+                src={`https://api.dicebear.com/9.x/notionists/svg?seed=${course.userId}`}
                 className="bg-white"
               />
               <AvatarFallback className="text-xs">
                 {course.title.charAt(0)}
               </AvatarFallback>
             </Avatar>
-            <p className="text-xs text-gray-500">1w ago</p>
+            <p className="text-xs text-gray-500">
+              {new Date(course._creationTime).toLocaleDateString()}
+            </p>
           </div>
         </div>
       </div>

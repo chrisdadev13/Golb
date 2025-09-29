@@ -11,7 +11,7 @@ export function EmptyState({ type }: EmptyStateProps) {
     switch (type) {
       case "xp":
         return {
-          icon: <Trophy className="h-12 w-12 text-gray-400" />,
+          icon: <Trophy className="h-12 w-12 text-gray-400" strokeWidth={1.5} />,
           title: "Start Your Learning Journey",
           description: "Complete courses and earn XP to climb the leaderboard!",
           actionText: "Create Courses",

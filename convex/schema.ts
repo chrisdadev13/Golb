@@ -11,7 +11,6 @@ export default defineSchema({
       v.literal("ready"),
       v.literal("failed"),
     ),
-    levels: v.array(v.id("levels")),
     prerequisites: v.optional(v.array(v.string())),
     nextSteps: v.optional(v.array(v.string())),
     topics: v.optional(v.array(v.string())),
@@ -73,24 +72,49 @@ export default defineSchema({
     hint: v.optional(v.string()),
     explanation: v.optional(v.string()),
     sources: v.optional(v.array(v.string())),
-
-    // User progress tracking
-    status: v.optional(
-      v.union(
-        v.literal("locked"),
-        v.literal("current"),
-        v.literal("completed"),
-      ),
-    ),
-    userAnswer: v.optional(v.string()), // User's answer for questions
-    isCorrect: v.optional(v.boolean()), // Whether the answer was correct
-    hintUsed: v.optional(v.boolean()), // Whether user used hint
-    seenAnswer: v.optional(v.boolean()), // Whether user clicked "See answer"
-    completedAt: v.optional(v.number()),
   })
     .index("by_section", ["sectionId"])
     .index("by_user", ["userId"])
     .index("by_section_order", ["sectionId", "order"])
-    .index("by_section_type", ["sectionId", "type"])
-    .index("by_section_status", ["sectionId", "status"]),
+    .index("by_section_type", ["sectionId", "type"]),
+  userProgress: defineTable({
+    userId: v.string(),
+    courseId: v.id("courses"),
+
+    // Streaks
+    currentStreak: v.number(), // days
+    longestStreak: v.number(),
+    lastActivityDate: v.number(), // "2025-09-29"
+
+    // Stats for leaderboard
+    totalBlocksCompleted: v.number(),
+    totalCorrectAnswers: v.number(),
+    totalQuestionsAnswered: v.number(),
+    xpPoints: v.number(), // simple: +10 per block, +20 for correct answer
+
+    startedAt: v.number(),
+    lastAccessedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_course", ["courseId"])
+    .index("by_user_course", ["userId", "courseId"])
+    .index("by_xp", ["xpPoints"]), // for leaderboard
+  userBlockState: defineTable({
+    userId: v.string(),
+    blockId: v.id("blocks"),
+    sectionId: v.id("sections"), // denormalized for faster queries
+
+    isVisible: v.boolean(), // true = unlocked and visible
+    isCompleted: v.boolean(),
+
+    // For questions only
+    userAnswer: v.optional(v.union(v.string(), v.array(v.string()))),
+    isCorrect: v.optional(v.boolean()),
+    hintUsed: v.optional(v.boolean()),
+
+    viewedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user_section", ["userId", "sectionId"])
+    .index("by_user_block", ["userId", "blockId"]),
 });

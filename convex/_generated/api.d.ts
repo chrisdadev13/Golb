@@ -9,7 +9,9 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as course from "../course.js";
 import type * as http from "../http.js";
+import type * as workflow from "../workflow.js";
 
 import type {
   ApiFromModules,
@@ -27,7 +29,9 @@ import type {
  */
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  course: typeof course;
   http: typeof http;
+  workflow: typeof workflow;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

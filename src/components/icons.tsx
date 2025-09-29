@@ -6,12 +6,13 @@ export const Icons = {
   PaperPlane,
 };
 
-function OkIcon() {
+function OkIcon({ className }: { className?: string }) {
   return (
     // biome-ignore lint/a11y/noSvgWithoutTitle: svg
     <svg
-      width="100"
-      height="100"
+      className={className}
+      width={className ? undefined : "100"}
+      height={className ? undefined : "100"}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -25,12 +26,13 @@ function OkIcon() {
   );
 }
 
-function Rank() {
+function Rank({ className }: { className?: string }) {
   return (
     // biome-ignore lint/a11y/noSvgWithoutTitle: svg
     <svg
-      width="100"
-      height="100"
+      className={className}
+      width={className ? undefined : "100"}
+      height={className ? undefined : "100"}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -47,12 +49,13 @@ function Rank() {
   );
 }
 
-function Diagram() {
+function Diagram({ className }: { className?: string }) {
   return (
     // biome-ignore lint/a11y/noSvgWithoutTitle: svg
     <svg
-      width="100"
-      height="100"
+      className={className}
+      width={className ? undefined : "100"}
+      height={className ? undefined : "100"}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -71,12 +74,13 @@ function Diagram() {
   );
 }
 
-function Rocket() {
+function Rocket({ className }: { className?: string }) {
   return (
     // biome-ignore lint/a11y/noSvgWithoutTitle: svg
     <svg
-      width="100"
-      height="100"
+      className={className}
+      width={className ? undefined : "100"}
+      height={className ? undefined : "100"}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -94,12 +98,13 @@ function Rocket() {
   );
 }
 
-function PaperPlane() {
+function PaperPlane({ className }: { className?: string }) {
   return (
     // biome-ignore lint/a11y/noSvgWithoutTitle: icon
     <svg
-      width="100"
-      height="100"
+      className={className}
+      width={className ? undefined : "100"}
+      height={className ? undefined : "100"}
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

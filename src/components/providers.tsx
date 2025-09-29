@@ -8,7 +8,9 @@ import { authClient } from "#/lib/auth-client";
 import { Toaster } from "./ui/sonner";
 import { TooltipProvider } from "./ui/tooltip";
 
-const convex = new ConvexReactClient(env.NEXT_PUBLIC_CONVEX_URL);
+const convex = new ConvexReactClient(env.NEXT_PUBLIC_CONVEX_URL, {
+	expectAuth: true
+});
 
 export function Providers({ children }: { children: ReactNode }) {
   return (

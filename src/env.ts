@@ -6,6 +6,7 @@ export const env = createEnv({
     CONVEX_DEPLOYMENT: z.string(),
     CONVEX_SITE_URL: z.url(),
     SITE_URL: z.url(),
+    OPENAI_API_KEY: z.string(),
   },
   clientPrefix: "NEXT_PUBLIC_",
   client: {
@@ -16,6 +17,7 @@ export const env = createEnv({
     CONVEX_DEPLOYMENT: process.env.CONVEX_DEPLOYMENT,
     CONVEX_SITE_URL: process.env.CONVEX_SITE_URL,
     SITE_URL: process.env.SITE_URL,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   },
   emptyStringAsUndefined: true,
 });
