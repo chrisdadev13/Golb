@@ -32,7 +32,7 @@ export const createCourse = mutation({
 	handler: async (ctx, args) => {
 		const user = await authComponent.getAuthUser(ctx);
 		if (!user) {
-			throw new Error("Not authenticated");
+			return;
 		}
 
 		const courseId = await ctx.db.insert("courses", {
@@ -74,7 +74,7 @@ export const getCourseById = query({
 	handler: async (ctx, args) => {
 		const user = await authComponent.getAuthUser(ctx);
 		if (!user) {
-			throw new Error("Not authenticated");
+			return;
 		}
 
 		const course = await ctx.db.get(args.courseId);
@@ -124,7 +124,7 @@ export const completeContentBlock = mutation({
 	handler: async (ctx, args) => {
 		const user = await authComponent.getAuthUser(ctx);
 		if (!user) {
-			throw new Error("Not authenticated");
+			return;
 		}
 
 		// Get or create user block state for this block
@@ -154,6 +154,49 @@ export const completeContentBlock = mutation({
 				viewedAt: now,
 				completedAt: now,
 			});
+		}
+
+		// Update user progress stats
+		const section = await ctx.db.get(args.sectionId);
+		if (section) {
+			const level = await ctx.db.get(section.levelId);
+			if (!level) return;
+
+			const userProgress = await ctx.db
+				.query("userProgress")
+				.withIndex("by_user_course", (q) =>
+					q.eq("userId", user._id).eq("courseId", level.courseId),
+				)
+				.first();
+
+			if (userProgress && !existingState?.isCompleted) {
+				// Only update if block wasn't already completed
+				const today = new Date().setHours(0, 0, 0, 0);
+				const lastActivity = new Date(userProgress.lastActivityDate).setHours(0, 0, 0, 0);
+				const daysSinceLastActivity = Math.floor((today - lastActivity) / (1000 * 60 * 60 * 24));
+
+				// Update streak
+				let newStreak = userProgress.currentStreak;
+				if (daysSinceLastActivity === 0) {
+					// Same day, keep streak
+					newStreak = userProgress.currentStreak;
+				} else if (daysSinceLastActivity === 1) {
+					// Consecutive day, increment streak
+					newStreak = userProgress.currentStreak + 1;
+				} else {
+					// Streak broken, reset to 1
+					newStreak = 1;
+				}
+
+				await ctx.db.patch(userProgress._id, {
+					totalBlocksCompleted: userProgress.totalBlocksCompleted + 1,
+					xpPoints: userProgress.xpPoints + 10, // +10 XP per block
+					currentStreak: newStreak,
+					longestStreak: Math.max(newStreak, userProgress.longestStreak),
+					lastActivityDate: now,
+					lastAccessedAt: now,
+				});
+			}
 		}
 
 		// Get all blocks in this section to find the next one
@@ -209,7 +252,7 @@ export const submitQuestionAnswer = mutation({
 	handler: async (ctx, args) => {
 		const user = await authComponent.getAuthUser(ctx);
 		if (!user) {
-			throw new Error("Not authenticated");
+			return;
 		}
 
 		// Get the block to check the correct answer
@@ -256,6 +299,55 @@ export const submitQuestionAnswer = mutation({
 				viewedAt: now,
 				completedAt: isCorrect ? now : undefined,
 			});
+		}
+
+		// Update user progress stats for questions
+		const section = await ctx.db.get(args.sectionId);
+		if (!section) return { isCorrect };
+		const level = await ctx.db.get(section.levelId);
+		if (!level) return { isCorrect };
+
+		const userProgress = await ctx.db
+			.query("userProgress")
+			.withIndex("by_user_course", (q) =>
+				q.eq("userId", user._id).eq("courseId", level.courseId),
+			)
+			.first();
+
+		if (userProgress) {
+			const today = new Date().setHours(0, 0, 0, 0);
+			const lastActivity = new Date(userProgress.lastActivityDate).setHours(0, 0, 0, 0);
+			const daysSinceLastActivity = Math.floor((today - lastActivity) / (1000 * 60 * 60 * 24));
+
+			// Update streak
+			let newStreak = userProgress.currentStreak;
+			if (daysSinceLastActivity === 0) {
+				// Same day, keep streak
+				newStreak = userProgress.currentStreak;
+			} else if (daysSinceLastActivity === 1) {
+				// Consecutive day, increment streak
+				newStreak = userProgress.currentStreak + 1;
+			} else {
+				// Streak broken, reset to 1
+				newStreak = 1;
+			}
+
+			const updates: Partial<typeof userProgress> = {
+				totalQuestionsAnswered: userProgress.totalQuestionsAnswered + 1,
+				currentStreak: newStreak,
+				longestStreak: Math.max(newStreak, userProgress.longestStreak),
+				lastActivityDate: now,
+				lastAccessedAt: now,
+			};
+
+			if (isCorrect && !existingState?.isCompleted) {
+				// Only increment if this is a new correct answer (not already completed)
+				updates.totalCorrectAnswers = userProgress.totalCorrectAnswers + 1;
+				updates.totalBlocksCompleted = userProgress.totalBlocksCompleted + 1;
+				updates.xpPoints = userProgress.xpPoints + 30; // +20 for correct answer + 10 for block
+			}
+
+			await ctx.db.patch(userProgress._id, updates);
 		}
 
 		// If correct, make next block visible
@@ -310,7 +402,7 @@ export const markSectionCompleted = mutation({
 	handler: async (ctx, args) => {
 		const user = await authComponent.getAuthUser(ctx);
 		if (!user) {
-			throw new Error("Not authenticated");
+			return;
 		}
 
 		// Update section status
@@ -337,7 +429,7 @@ export const getBlocksBySection = query({
 	handler: async (ctx, args) => {
 		const user = await authComponent.getAuthUser(ctx);
 		if (!user) {
-			throw new Error("Not authenticated");
+			return;
 		}
 
 		// Get all blocks for this section, ordered
@@ -415,5 +507,112 @@ export const getBlocksBySection = query({
 		});
 
 		return enrichedBlocks;
+	},
+});
+
+
+/**
+ * Generates blocks for a section that has no content
+ * Includes robust validation and race condition prevention
+ */
+export const generateBlocksForSection = mutation({
+	args: {
+		sectionId: v.id("sections"),
+	},
+	handler: async (ctx, args) => {
+		// 1. Authentication check
+		const user = await authComponent.getAuthUser(ctx);
+		if (!user) {
+			return;
+		}
+
+		// 2. Verify section exists
+		const section = await ctx.db.get(args.sectionId);
+		if (!section) {
+			throw new Error("Section not found");
+		}
+
+		// 3. Check if section already has blocks (race condition check)
+		const existingBlocks = await ctx.db
+			.query("blocks")
+			.withIndex("by_section", (q) => q.eq("sectionId", args.sectionId))
+			.first();
+
+		if (existingBlocks) {
+			throw new Error("Section already has blocks. Cannot regenerate.");
+		}
+
+		// 4. Validate section status
+		if (section.status === "generating") {
+			throw new Error("Section is already generating content. Please wait.");
+		}
+
+		if (section.status !== "no_content") {
+			throw new Error(
+				`Section status is "${section.status}". Can only generate blocks for sections with "no_content" status.`,
+			);
+		}
+
+		// 5. Get level and verify it exists
+		const level = await ctx.db.get(section.levelId);
+		if (!level) {
+			throw new Error("Level not found");
+		}
+
+		// 6. Get course and verify ownership
+		const course = await ctx.db.get(level.courseId);
+		if (!course) {
+			throw new Error("Course not found");
+		}
+
+		if (course.userId !== user._id) {
+			throw new Error("Not authorized to generate blocks for this section");
+		}
+
+		// 7. Verify course is not still generating
+		if (course.status === "generating") {
+			throw new Error(
+				"Course is still being generated. Please wait for it to complete.",
+			);
+		}
+
+		// 8. Double-check no blocks exist (additional race condition prevention)
+		const blockCount = await ctx.db
+			.query("blocks")
+			.withIndex("by_section", (q) => q.eq("sectionId", args.sectionId))
+			.collect()
+			.then((blocks) => blocks.length);
+
+		if (blockCount > 0) {
+			throw new Error(
+				`Section already has ${blockCount} block(s). Cannot regenerate.`,
+			);
+		}
+
+		// 9. Set section status to generating (atomic operation)
+		await ctx.db.patch(args.sectionId, {
+			status: "generating",
+		});
+
+		try {
+			// 10. Trigger the workflow to generate blocks
+			await workflow.start(ctx, internal.workflow.generateBlocksWorkflow, {
+				sectionId: args.sectionId,
+			});
+		} catch (error) {
+			// If workflow fails to start, revert status
+			await ctx.db.patch(args.sectionId, {
+				status: "no_content",
+			});
+			throw new Error(
+				`Failed to start content generation: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+
+		return {
+			success: true,
+			message: "Content generation started successfully",
+			sectionId: args.sectionId,
+		};
 	},
 });

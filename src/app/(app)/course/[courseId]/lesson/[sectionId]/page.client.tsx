@@ -320,16 +320,19 @@ export default function LearnSectionPage() {
 														let optionColor = "";
 														if (isCompleted) {
 															if (isCorrectAnswer) {
-																optionColor = "border-green-300 bg-green-50";
+																optionColor = "border-green-300 bg-green-50 border-b-4";
 															} else if (isSelected) {
-																optionColor = "border-red-300 bg-red-50";
+																optionColor = "border-red-300 bg-red-50 border-b-4";
 															}
+														} else if (isSelected) {
+															// Selected but not completed - blue border
+															optionColor = "border-blue-500 border-b-4 bg-white";
 														}
 
 														const baseClasses =
-															"flex cursor-pointer items-center rounded-lg border p-4 transition-colors";
+															"flex cursor-pointer items-center rounded-lg border p-4 transition-all active:border-b-2 active:translate-y-0.5";
 														const defaultClasses =
-															"border-gray-200 hover:bg-gray-50";
+															"border-gray-300 border-b-4 hover:border-gray-200 hover:bg-gray-50";
 														const finalClasses = `${baseClasses} ${optionColor || defaultClasses}`;
 
 														return (

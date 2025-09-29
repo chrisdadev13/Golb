@@ -13,55 +13,20 @@ import { api } from "../../../../../convex/_generated/api";
 
 export function HomePageClient() {
   const courses = useQuery(api.course.getCourses);
+  const leaderboardData = useQuery(api.leaderboard.getLeaderboard, { limit: 10 });
+  const userRank = useQuery(api.leaderboard.getCurrentUserRank);
+  const userStreak = useQuery(api.leaderboard.getUserStreak);
+  const currentUser = useQuery(api.auth.getCurrentUser);
 
-  const streakDays = [
-    { label: "T", day: "Tuesday", isActive: true },
-    { label: "W", day: "Wednesday", isActive: false },
-    { label: "Th", day: "Thursday", isActive: false },
-    { label: "F", day: "Friday", isActive: false },
-    { label: "S", day: "Saturday", isActive: false },
-  ];
-
-  const leaderboard = [
-    {
-      id: 1,
-      name: "Alex Chen",
-      avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=alex",
-      score: 2450,
-      isCurrentUser: false,
-    },
-    {
-      id: 2,
-      name: "Sarah Kim",
-      avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=sarah",
-      score: 2380,
-      isCurrentUser: false,
-    },
-    {
-      id: 3,
-      name: "Moksh",
-      avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=moksh",
-      score: 0,
-      isCurrentUser: true,
-    },
-    {
-      id: 4,
-      name: "David Park",
-      avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=david",
-      score: 1980,
-      isCurrentUser: false,
-    },
-    {
-      id: 5,
-      name: "Emma Wilson",
-      avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=emma",
-      score: 1820,
-      isCurrentUser: false,
-    },
-  ];
-
-  const currentUser = leaderboard.find(user => user.isCurrentUser);
-  const currentUserXP = currentUser?.score || 0;
+  const streakDays = userStreak?.streakDays || [];
+  
+  // Mark current user in leaderboard
+  const leaderboard = (leaderboardData || []).map(user => ({
+    ...user,
+    isCurrentUser: currentUser?._id === user.id
+  }));
+  
+  const currentUserXP = userRank?.xp || 0;
 
   return (
     <div className="mt-5 space-y-0 bg-white pb-12 px-58">
@@ -193,12 +158,16 @@ export function HomePageClient() {
                       <LeaderboardItem key={user.id} user={user} position={index + 1} />
                     ))}
                   </div>
-                  <div className="mt-4 border-gray-100 border-t pt-3">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-500">Your rank</span>
-                      <span className="font-medium text-blue-600">#3 of 5</span>
+                  {userRank && userRank.rank > 0 && (
+                    <div className="mt-4 border-gray-100 border-t pt-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">Your rank</span>
+                        <span className="font-medium text-blue-600">
+                          #{userRank.rank} of {userRank.total}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </>
               )}
             </CardContent>

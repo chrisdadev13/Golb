@@ -134,6 +134,11 @@ export const generateCourseWorkflow = workflow.define({
 				);
 
 				if (firstSection) {
+					await step.runMutation(internal.workflow.updateSectionStatus, {
+						sectionId: firstSectionId,
+						status: toSectionStatus("in_progress"),
+					});
+
 					const blocks = await step.runAction(
 						internal.workflow.generateBlocksAction,
 						{

@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui/avatar";
 
 interface LeaderboardItemProps {
   user: {
-    id: number;
+    id: string;
     name: string;
     avatar: string;
     score: number;

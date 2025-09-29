@@ -1,13 +1,17 @@
 "use client";
 
-import { Key, Zap } from "lucide-react";
+import { useQuery } from "convex/react";
+import { Trophy, Flame } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import UserMenu from "#/components/user-menu";
+import { api } from "../../convex/_generated/api";
 import { Button } from "./ui/button";
 
 export function AppHeader() {
   const pathname = usePathname();
+  const userRank = useQuery(api.leaderboard.getCurrentUserRank);
+  const userStreak = useQuery(api.leaderboard.getUserStreak);
   
   return (
     <header className="flex w-full items-center justify-between bg-white px-5 py-4 shadow-sm">
@@ -50,19 +54,26 @@ export function AppHeader() {
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
+          {/* User Ranking */}
           <Button
             className="flex items-center gap-1 px-3 py-1"
             variant="outline"
           >
-            <span className="font-medium text-black">2</span>
-            <Key size={14} className="text-yellow-500" />
+            <Trophy size={14} className="text-yellow-500" />
+            <span className="font-medium text-black">
+              {userRank ? `#${userRank.rank}` : "—"}
+            </span>
           </Button>
+          
+          {/* User Streak */}
           <Button
             className="flex items-center gap-1 px-3 py-1"
             variant="outline"
           >
-            <span className="font-medium text-black">1</span>
-            <Zap size={14} className="text-gray-400" />
+            <Flame size={14} className="text-orange-500" />
+            <span className="font-medium text-black">
+              {userStreak ? userStreak.currentStreak : 0}
+            </span>
           </Button>
         </div>
         <UserMenu />

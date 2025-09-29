@@ -1,0 +1,13 @@
+[project]
+name = "video-generator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "elevenlabs>=2.16.0",
+    "manim>=0.19.0",
+    "manim-voiceover[elevenlabs]>=0.3.4.post1",
+    "setuptools>=80.9.0",
+    "wheel>=0.45.1",
+]

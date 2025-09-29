@@ -1,11 +1,12 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 import { ArrowLeft, BookOpen, CheckCircle, Lock, Play } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { Badge } from "#/components/ui/badge";
 import { Skeleton } from "#/components/ui/skeleton";
 import {
@@ -204,11 +205,25 @@ function SectionItem({
 	isFirstAvailable: boolean;
 }) {
 
+	const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+	const generateBlocks = useMutation(api.course.generateBlocksForSection);
+
 	const handleGenerateContent = async () => {
+		if (isGeneratingContent) return;
+		
+		setIsGeneratingContent(true);
 		try {
-            console.log("lol")
+			const result = await generateBlocks({ sectionId: section._id });
+			console.log("Content generation started:", result.message);
 		} catch (error) {
 			console.error("Error generating blocks:", error);
+			alert(
+				error instanceof Error 
+					? error.message 
+					: "Failed to generate content. Please try again."
+			);
+		} finally {
+			setIsGeneratingContent(false);
 		}
 	};
 	if (isLocked) {
@@ -259,19 +274,23 @@ function SectionItem({
 			<div className="ml-14 flex items-center gap-4 rounded-lg p-4">
 				{/* Section Icon */}
 				<div className="flex-shrink-0">
-					<Tooltip open={true}>
+					<Tooltip open={!isGeneratingContent}>
 						<TooltipTrigger asChild>
 							<button
 								type="button"
 								onClick={handleGenerateContent}
-								disabled={isGenerating}
+								disabled={isGeneratingContent || isGenerating}
 								className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-[#333] border-b-4 bg-[#4C4C4C] hover:bg-[#5C5C5C] active:border-b-0 disabled:cursor-not-allowed disabled:opacity-50"
 							>
-								<Play className="h-3 w-3 text-white" fill="#fff" />
+								{isGeneratingContent ? (
+									<div className="h-3 w-3 animate-spin rounded-full border-white border-b-2" />
+								) : (
+									<Play className="h-3 w-3 text-white" fill="#fff" />
+								)}
 							</button>
 						</TooltipTrigger>
 						<TooltipContent className="z-0">
-							<p>Generate Content</p>
+							<p>{isGeneratingContent ? "Starting generation..." : "Generate Content"}</p>
 						</TooltipContent>
 					</Tooltip>
 				</div>
