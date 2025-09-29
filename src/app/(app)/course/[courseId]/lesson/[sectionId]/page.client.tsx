@@ -16,6 +16,7 @@ import {
 	StepperTrigger,
 } from "#/components/ui/stepper";
 import UserMenu from "#/components/user-menu";
+import { Button } from "#/components/ui/button";
 
 export default function LearnSectionPage() {
 	const params = useParams();
@@ -34,8 +35,10 @@ export default function LearnSectionPage() {
 	const [currentBlockIndex, setCurrentBlockIndex] = useState(0);
 	const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
 	const [showIncorrectBanner, setShowIncorrectBanner] = useState(false);
+	const [shouldScrollToNext, setShouldScrollToNext] = useState(false);
 
 	const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
+	const prevBlocksLengthRef = useRef<number>(0);
 
 	// Initialize refs array
 	useEffect(() => {
@@ -76,6 +79,34 @@ export default function LearnSectionPage() {
 		}
 	}, [blocks]);
 
+	// Auto-scroll when new blocks are added
+	useEffect(() => {
+		if (!blocks) return;
+
+		// Check if blocks array grew (new block unlocked)
+		const blocksGrew = blocks.length > prevBlocksLengthRef.current;
+		
+		if (blocksGrew && shouldScrollToNext) {
+			// New block has been added to DOM, scroll to the last block (newest one)
+			const lastBlockIndex = blocks.length - 1;
+			
+			setTimeout(() => {
+				if (blockRefs.current[lastBlockIndex]) {
+					blockRefs.current[lastBlockIndex]?.scrollIntoView({
+						behavior: "smooth",
+						block: "start",
+					});
+				}
+			}, 150);
+			
+			// Reset the flag
+			setShouldScrollToNext(false);
+		}
+
+		// Update the previous length
+		prevBlocksLengthRef.current = blocks.length;
+	}, [blocks, shouldScrollToNext]);
+
 	const handleAnswerSelect = (blockId: string, answer: string) => {
 		setSelectedAnswers((prev) => ({ ...prev, [blockId]: answer }));
 		// Hide incorrect banner when user changes answer
@@ -102,20 +133,9 @@ export default function LearnSectionPage() {
 			// Hide banner
 			setShowIncorrectBanner(false);
 
-			// Move to next block in UI
+			// Prepare to scroll to next block when it appears
 			if (blocks && currentBlockIndex < blocks.length - 1) {
-				const nextIndex = currentBlockIndex + 1;
-				setCurrentBlockIndex(nextIndex);
-
-				// Scroll to next block
-				setTimeout(() => {
-					if (blockRefs.current[nextIndex]) {
-						blockRefs.current[nextIndex]?.scrollIntoView({
-							behavior: "smooth",
-							block: "start",
-						});
-					}
-				}, 100);
+				setShouldScrollToNext(true);
 			} else if (isLastBlock) {
 				// If it's the last block, complete section
 				await markSectionCompleted({ sectionId });
@@ -146,7 +166,9 @@ export default function LearnSectionPage() {
 					setShowIncorrectBanner(true);
 					return;
 				}
-				// If correct, the next block will be unlocked automatically
+				
+				// If correct, prepare to scroll to next block when it appears
+				setShouldScrollToNext(true);
 			} else if (isLastBlock) {
 				// Handle last block - complete section
 				await completeContentBlock({
@@ -164,21 +186,8 @@ export default function LearnSectionPage() {
 					sectionId,
 				});
 
-				// Move to next block in UI
-				if (blocks && currentBlockIndex < blocks.length - 1) {
-					const nextIndex = currentBlockIndex + 1;
-					setCurrentBlockIndex(nextIndex);
-
-					// Scroll to next block
-					setTimeout(() => {
-						if (blockRefs.current[nextIndex]) {
-							blockRefs.current[nextIndex]?.scrollIntoView({
-								behavior: "smooth",
-								block: "start",
-							});
-						}
-					}, 100);
-				}
+				// Prepare to scroll to next block when it appears
+				setShouldScrollToNext(true);
 			}
 		} catch (error) {
 			console.error("Error handling button click:", error);
@@ -435,7 +444,7 @@ export default function LearnSectionPage() {
 								type="button"
 								onClick={handleButtonClick}
 								disabled={isQuestion ? !hasAnswer : false}
-								className="h-10 rounded-lg bg-gray-900 px-8 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+								className="h-10 rounded-lg px-8 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{isLastBlock ? "Complete" : isQuestion ? "Check" : "Next"}
 							</FancyButton>
@@ -447,9 +456,9 @@ export default function LearnSectionPage() {
 			{/* Incorrect Answer Banner */}
 			{showIncorrectBanner && currentBlock && (
 				<div className="fixed right-0 bottom-0 left-0 p-6">
-					<div className="mx-auto max-w-lg rounded-lg border border-yellow-200 bg-yellow-50 p-6">
+					<div className="mx-auto max-w-lg rounded-lg border bg-[#FFDFE1] p-6">
 						<div className="relative">
-							<p className="mb-4 font-medium text-gray-900">That's incorrect. Try again.</p>
+							<p className="mb-4 font-semibold text-[#EA2C2B]">That's incorrect. Try again.</p>
 							<div className="flex gap-3">
 								<FancyButton
 									type="button"
@@ -458,14 +467,14 @@ export default function LearnSectionPage() {
 								>
 									Try again
 								</FancyButton>
-								<FancyButton
+								<Button
 									type="button"
+                                    className="hover:bg-transparent"
 									onClick={handleSeeAnswer}
-									className="h-10 rounded-full border border-yellow-300 bg-yellow-100 px-6 text-gray-900 hover:bg-yellow-200"
-									variant="outline"
+									variant="ghost"
 								>
 									See answer
-								</FancyButton>
+								</Button>
 							</div>
 						</div>
 					</div>
