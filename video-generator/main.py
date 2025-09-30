@@ -207,13 +207,16 @@ def generate_and_render_video(course_data: dict):
     secrets=[
         modal.Secret.from_name("elevenlabs-api-key"),
         modal.Secret.from_name("r2-credentials"),
-        modal.Secret.from_name("gemini-api-key")
+        modal.Secret.from_name("gemini-api-key"),
+        modal.Secret.from_name("api-auth-key")
     ],
 )
 @modal.asgi_app()
 def fastapi_app():
-    from fastapi import FastAPI, HTTPException
+    import os 
+    from fastapi import FastAPI, HTTPException, Header
     from fastapi.middleware.cors import CORSMiddleware
+    from typing import Optional
     
     web_app = FastAPI(title="Manim Course Video Generator")
     
@@ -225,9 +228,21 @@ def fastapi_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    def verify_api_key(x_api_key: Optional[str] = Header(None)):
+        if not x_api_key:
+            raise HTTPException(status_code=401, detail="API key is missing")
+        
+        # Get the valid API key from environment
+        valid_api_key = os.environ.get("API_AUTH_KEY")
+        
+        if x_api_key != valid_api_key:
+            raise HTTPException(status_code=403, detail="Invalid API key")
+        
+        return x_api_key
     
     @web_app.post("/generate")
-    async def generate_course_video(data: dict):
+    async def generate_course_video(data: dict, api_key: str = Header(..., alias="X-API-Key")):
         """
         Generate educational video from course content summary
         
@@ -242,6 +257,8 @@ def fastapi_app():
             ]
         }
         """
+        verify_api_key(api_key)
+
         try:
             if "title" not in data or "blocks" not in data:
                 raise HTTPException(
@@ -255,7 +272,8 @@ def fastapi_app():
             raise HTTPException(status_code=500, detail=str(e))
     
     @web_app.get("/health")
-    async def health():
+    async def health(api_key: str = Header(..., alias="X-API-Key")):
+        verify_api_key(api_key)
         return {"status": "healthy"}
     
     return web_app
