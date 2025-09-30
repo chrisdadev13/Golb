@@ -442,6 +442,28 @@ export const generateBlocksWorkflow = workflow.define({
 				});
 			}
 
+			// Logic to Generate Video
+			const summarizedBlocks = await step.runAction(
+				internal.workflow.summarizeBlocksAction,
+				{ blocks: blocks.map((block) => block.content) },
+			);
+
+			const payload = {
+				title: section.title,
+				subject: course.title,
+				blocks: summarizedBlocks,
+			};
+
+			const { r2_filename } = await step.runAction(
+				internal.workflow.generateVideoCourseAction,
+				payload,
+			);
+
+			await step.runMutation(internal.workflow.updateSectionVideoUrl, {
+				sectionId: args.sectionId,
+				videoUrl: `https://pub-a20860b4624741878bf5736392e03d84.r2.dev/chris-bridge/${r2_filename}`,
+			});
+
 			// Update section status to in_progress when generation is complete
 			await step.runMutation(internal.workflow.updateSectionStatus, {
 				sectionId: args.sectionId,
