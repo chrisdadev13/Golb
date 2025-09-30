@@ -61,7 +61,7 @@ class CourseScene(VoiceoverScene):
 ```
 
 IMPORTANT RULES:
-
+CRITICAL CONSTRAINT: DO NOT use SVGMobject or any external SVG files. Only use built-in Manim objects.
 60-SECOND CONSTRAINT: Condense ALL provided content into a 60-second video. Prioritize the most important concepts and skip secondary details if needed.
 Use clear, engaging voiceover text that explains concepts at an appropriate level
 Create visual representations that match the subject (use MathTex for equations, shapes for diagrams, etc.)

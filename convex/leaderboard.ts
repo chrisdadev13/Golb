@@ -12,24 +12,33 @@ export const getLeaderboard = query({
 	handler: async (ctx, args) => {
 		const limit = args.limit || 10;
 
-		// Get all user progress sorted by XP
-		const topUsers = await ctx.db
-			.query("userProgress")
-			.withIndex("by_xp")
-			.order("desc")
-			.take(limit);
+		// Get all user progress records
+		const allProgress = await ctx.db.query("userProgress").collect();
+
+		// Aggregate XP by userId
+		const userXpMap = new Map<string, number>();
+		for (const progress of allProgress) {
+			const currentXp = userXpMap.get(progress.userId) || 0;
+			userXpMap.set(progress.userId, currentXp + progress.xpPoints);
+		}
+
+		// Convert to array and sort by total XP
+		const sortedUsers = Array.from(userXpMap.entries())
+			.map(([userId, totalXp]) => ({ userId, totalXp }))
+			.sort((a, b) => b.totalXp - a.totalXp)
+			.slice(0, limit);
 
 		// Get user details for each
 		const leaderboardWithUsers = await Promise.all(
-			topUsers.map(async (progress) => {
+			sortedUsers.map(async ({ userId, totalXp }) => {
 				// Get user from auth
-				const user = await authComponent.getAnyUserById(ctx, progress.userId);
+				const user = await authComponent.getAnyUserById(ctx, userId);
 				
 				return {
-					id: progress.userId,
+					id: userId,
 					name: user?.name || "Anonymous",
-					avatar: user?.image || `https://api.dicebear.com/9.x/notionists/svg?seed=${progress.userId}`,
-					score: progress.xpPoints,
+					avatar: user?.image || `https://api.dicebear.com/9.x/notionists/svg?seed=${userId}`,
+					score: totalXp,
 					isCurrentUser: false, // Will be set on frontend
 				};
 			}),
@@ -44,40 +53,45 @@ export const getLeaderboard = query({
  */
 export const getCurrentUserRank = query({
 	handler: async (ctx) => {
+		const authed = await ctx.auth.getUserIdentity();
+		if(!authed) return; 
+
 		const user = await authComponent.getAuthUser(ctx);
+
 		if (!user) {
 			return;
 		}
 
-		// Get current user's progress
-		const userProgress = await ctx.db
-			.query("userProgress")
-			.withIndex("by_user", (q) => q.eq("userId", user._id))
-			.first();
+		// Get all user progress records
+		const allProgress = await ctx.db.query("userProgress").collect();
 
-		if (!userProgress) {
+		// Aggregate XP by userId
+		const userXpMap = new Map<string, number>();
+		for (const progress of allProgress) {
+			const currentXp = userXpMap.get(progress.userId) || 0;
+			userXpMap.set(progress.userId, currentXp + progress.xpPoints);
+		}
+
+		// Get current user's total XP
+		const currentUserXp = userXpMap.get(user._id) || 0;
+
+		if (currentUserXp === 0) {
 			return {
 				rank: 0,
-				total: 0,
+				total: userXpMap.size,
 				xp: 0,
 			};
 		}
 
 		// Count how many users have more XP
-		const usersWithMoreXP = await ctx.db
-			.query("userProgress")
-			.withIndex("by_xp")
-			.order("desc")
-			.filter((q) => q.gt(q.field("xpPoints"), userProgress.xpPoints))
-			.collect();
-
-		// Get total number of users
-		const totalUsers = await ctx.db.query("userProgress").collect();
+		const usersWithMoreXP = Array.from(userXpMap.values()).filter(
+			(xp) => xp > currentUserXp
+		).length;
 
 		return {
-			rank: usersWithMoreXP.length + 1,
-			total: totalUsers.length,
-			xp: userProgress.xpPoints,
+			rank: usersWithMoreXP + 1,
+			total: userXpMap.size,
+			xp: currentUserXp,
 		};
 	},
 });
@@ -87,6 +101,10 @@ export const getCurrentUserRank = query({
  */
 export const getUserStreak = query({
 	handler: async (ctx) => {
+		const authed = await ctx.auth.getUserIdentity();
+
+		if(!authed) return; 
+
 		const user = await authComponent.getAuthUser(ctx);
 		if (!user) {
 			return;

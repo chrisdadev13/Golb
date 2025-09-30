@@ -98,7 +98,7 @@ export const generateCourseWorkflow = workflow.define({
 				const level = await step.runQuery(internal.workflow.getLevelById, {
 					levelId,
 				});
-				
+
 				if (!level) continue;
 
 				const sections = await step.runAction(
@@ -165,6 +165,22 @@ export const generateCourseWorkflow = workflow.define({
 							sources: block.sources,
 						});
 					}
+					// Logic to Generate Video
+
+					const summarizedBlocks = await Promise.all(blocks.map((block) => summarizeBlock(block.content)));
+					
+					const payload = {
+						title: firstSection.title,
+						subject: args.subject,
+						blocks: summarizedBlocks,
+					}
+
+					const { r2_filename } = await generateVideoCourse(payload);
+
+					await step.runMutation(internal.workflow.updateSectionVideoUrl, {
+						sectionId: firstSectionId,
+						videoUrl: `https://pub-a20860b4624741878bf5736392e03d84.r2.dev/chris-bridge/${r2_filename}`,
+					});
 				}
 			}
 
@@ -523,6 +539,21 @@ export const updateSectionStatus = internalMutation({
 	handler: async (ctx, args) => {
 		await ctx.db.patch(args.sectionId, {
 			status: args.status,
+		});
+	},
+});
+
+/**
+ * Updates the video URL of a section
+ */
+export const updateSectionVideoUrl = internalMutation({
+	args: {
+		sectionId: v.id("sections"),
+		videoUrl: v.string(),
+	},
+	handler: async (ctx, args) => {
+		await ctx.db.patch(args.sectionId, {
+			videoUrl: args.videoUrl,
 		});
 	},
 });
@@ -903,4 +934,44 @@ async function generateBlocks(
 		}),
 	});
 	return object.blocks;
+}
+
+// Summarize block before sending it to the API that generates video
+async function summarizeBlock(block: string) {
+	const { text } = await generateText({
+		model: openai.responses("gpt-4o-mini"),
+		system: `You are a concise technical summarizer. Summarize the given text block into 1-2 short sentences that capture only the core concept. Be extremely brief.`,
+		prompt: `Summarize this in 1-2 sentences:\n\n${block}`,
+		temperature: 0.1,
+	});
+	return text;
+}
+
+// Generate Video API
+
+const API_KEY = process.env.API_KEY as string;
+
+type Payload = {
+	title: string;
+	subject: string;
+	blocks: string[]
+}
+async function generateVideoCourse(payload: Payload): Promise<{ r2_url: string, r2_filename: string }> {
+	const response = await fetch(
+		"https://chrisdadev13--manim-course-generator-fastapi-app.modal.run/generate",
+		{
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-API-Key": API_KEY
+			},
+			body: JSON.stringify(payload)
+		}
+	);
+
+	const data = await response.json();
+
+	const { r2_url, r2_filename } = data as { r2_url: string, r2_filename: string };
+
+	return { r2_url, r2_filename };
 }

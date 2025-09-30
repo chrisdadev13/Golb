@@ -6,6 +6,9 @@ import { internal } from "./_generated/api";
 
 export const getCourses = query({
 	handler: async (ctx) => {
+		const authed = await ctx.auth.getUserIdentity();
+		if(!authed) return; 
+
 		const user = await authComponent.getAuthUser(ctx);
 
 		if (!user) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { Authenticated, useConvexAuth, useQuery } from "convex/react";
 import { Trophy, Flame } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -10,6 +10,7 @@ import { Button } from "./ui/button";
 
 export function AppHeader() {
   const pathname = usePathname();
+
   const userRank = useQuery(api.leaderboard.getCurrentUserRank);
   const userStreak = useQuery(api.leaderboard.getUserStreak);
   
@@ -28,19 +29,18 @@ export function AppHeader() {
               size="sm"
               className={pathname === "/home" ? "text-blue-600 font-semibold underline" : "text-gray-600 hover:text-gray-900"}
             >
-              Home
+              Courses
             </Button>
           </Link>
-          {/* <Link href="/learn">
+          <Link href="/learn">
             <Button 
               variant="link" 
               size="sm"
               className={pathname.startsWith("/learn") ? "text-blue-600 font-semibold" : "text-gray-600 hover:text-gray-900"}
             >
-              Learn
+              Flashcards
             </Button>
           </Link>
-*/}
           <Link href="/profile">
             <Button 
               variant="link" 
@@ -55,6 +55,8 @@ export function AppHeader() {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           {/* User Ranking */}
+          <Authenticated>
+
           <Button
             className="flex items-center gap-1 px-3 py-1"
             variant="outline"
@@ -75,6 +77,8 @@ export function AppHeader() {
               {userStreak ? userStreak.currentStreak : 0}
             </span>
           </Button>
+
+          </Authenticated>
         </div>
         <UserMenu />
       </div>

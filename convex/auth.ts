@@ -5,7 +5,7 @@ import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 
-const siteUrl = process.env.SITE_URL!;
+const siteUrl = process.env.SITE_URL as string;
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
@@ -40,6 +40,9 @@ export const createAuth = (
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
+    const authed = await ctx.auth.getUserIdentity()
+    if(!authed) return
+
     return authComponent.getAuthUser(ctx);
   },
 });
