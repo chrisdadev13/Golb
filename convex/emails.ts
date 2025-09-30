@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { components } from "./_generated/api";
 import { Resend } from "@convex-dev/resend";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalAction } from "./_generated/server";
 
 export const resend: Resend = new Resend(components.resend, {
   testMode: false
@@ -71,5 +71,52 @@ ${flashcardUrl}
 Happy studying!
 The Suma Team`,
     });
+  },
+});
+
+/**
+ * Helper function to send email verification (can be called from Better Auth)
+ */
+export async function sendVerificationEmail(
+  // biome-ignore lint/suspicious/noExplicitAny: Better Auth context type compatibility
+  ctx: any,
+  { to, url, firstName }: { to: string; url: string; firstName?: string }
+) {
+  const urlWithCallback = new URL(url);
+  const siteUrl = process.env.SITE_URL || "http://localhost:3000";
+  urlWithCallback.searchParams.set('callbackURL', `${siteUrl}/home`);
+
+  const greeting = firstName ? `Hi ${firstName}` : "Hello";
+
+  await resend.sendEmail(ctx, {
+    from: "Suma <notifications@sumahq.com>",
+    to,
+    subject: "Verify your email address",
+    text: `${greeting},
+
+Thank you for signing up! Please verify your email address by clicking the link below:
+
+${urlWithCallback.toString()}
+
+This link will expire in 24 hours for security reasons.
+
+If you didn't create an account, you can safely ignore this email.
+
+Best regards,
+The Suma Team`,
+  });
+}
+
+/**
+ * Sends an email verification link to the user (internal action wrapper)
+ */
+export const sendEmailVerification = internalAction({
+  args: {
+    to: v.string(),
+    url: v.string(),
+    firstName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await sendVerificationEmail(ctx, args);
   },
 });

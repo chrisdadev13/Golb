@@ -76,6 +76,16 @@ Start with a title screen introducing the topic
 End with a summary or conclusion
 ONLY return the Python code for the CourseScene class, nothing else
 Do NOT include markdown code fences, explanations, or comments outside the code
+
+API USAGE CONSTRAINTS - FOLLOW EXACTLY:
+- NEVER use .get_part_by_tex() with 'index' parameter - it does NOT accept this argument
+- To select parts of MathTex/Tex: use indexing like equation[0], equation[1:3], etc.
+- DO NOT use get_parts_by_tex() with index parameter
+- Correct way to reference parts: my_tex[0], my_tex[1], my_tex[-1]
+- Correct way to find by tex: my_tex.get_part_by_tex("x") (no index parameter!)
+- When highlighting parts of equations, use direct indexing or get_part_by_tex WITHOUT index
+- Example: equation.get_part_by_tex("E") NOT equation.get_part_by_tex("E", index=0)
+
 """
 
 @app.function(

@@ -4,6 +4,7 @@ import { betterAuth } from "better-auth";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
+import { sendVerificationEmail } from "./emails";
 
 const siteUrl = process.env.SITE_URL as string;
 
@@ -23,10 +24,21 @@ export const createAuth = (
     },
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
+    emailVerification: {
+      sendVerificationEmail: async ({ user, url }) => {
+        await sendVerificationEmail(ctx, {
+          to: user.email,
+          url,
+          firstName: user.name?.split(' ')[0],
+        });
+      },
+      autoSignInAfterVerification: true,
+    },
     // Configure simple, non-verified email/password to get started
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: false,
+      requireEmailVerification: true,
+
     },
     plugins: [
       // The Convex plugin is required for Convex compatibility
