@@ -161,6 +161,8 @@ export default function LearnSectionPage() {
 					userAnswer,
 				});
 
+				if(!result) return
+
 				// Show banner if incorrect, otherwise continue
 				if (!result.isCorrect) {
 					setShowIncorrectBanner(true);

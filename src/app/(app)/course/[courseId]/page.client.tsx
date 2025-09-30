@@ -213,10 +213,8 @@ function SectionItem({
 		
 		setIsGeneratingContent(true);
 		try {
-			const result = await generateBlocks({ sectionId: section._id });
-			console.log("Content generation started:", result.message);
+			await generateBlocks({ sectionId: section._id });
 		} catch (error) {
-			console.error("Error generating blocks:", error);
 			alert(
 				error instanceof Error 
 					? error.message 
