@@ -22,7 +22,7 @@ function Logo() {
   return (
     <div className="flex items-center justify-start">
       <h1 className="flex flex-col justify-center font-medium font-sans text-[#2F3037] text-sm leading-5 sm:text-base md:text-lg lg:text-xl">
-        Golb
+        Suma
       </h1>
     </div>
   );

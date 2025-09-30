@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, CheckCircle2, XCircle, TrendingUp, AlertCircle } from "lucide-react";
 import { FlashcardCard } from "#/components/flashcard-card";
 import { EmptyState } from "#/components/empty-state";
 import { Button } from "#/components/ui/button";
@@ -25,8 +25,10 @@ export default function FlashCardsPage() {
   
   // Get flashcard sets from database
   const flashcards = useQuery(api.flashcard.getFlashcardSets);
+  const stats = useQuery(api.flashcard.getUserFlashcardStats);
   const generateUrl = useMutation(api.files.generateUploadUrl);
   const createFlashcardSet = useMutation(api.flashcard.createFlashcardSetFromFile);
+  const createFlashcardSetFromUrls = useMutation(api.flashcard.createFlashcardSetFromUrls);
 
   const [creationMethod, setCreationMethod] = useState<"file" | "url" | null>(null);
   const [title, setTitle] = useState("");
@@ -85,6 +87,41 @@ export default function FlashCardsPage() {
 
   const updateUrl = (id: string, value: string) => {
     setUrls(urls.map((url) => (url.id === id ? { ...url, value } : url)));
+  };
+
+  const handleUrlSubmit = async () => {
+    if (!title.trim()) {
+      alert("Please enter a title for your flashcard set");
+      return;
+    }
+
+    // Filter out empty URLs
+    const validUrls = urls.filter((url) => url.value.trim() !== "").map((url) => url.value.trim());
+
+    if (validUrls.length === 0) {
+      alert("Please enter at least one URL");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      await createFlashcardSetFromUrls({
+        title: title.trim(),
+        sourceUrls: validUrls,
+        targetCount: 20,
+      });
+
+      // Reset form
+      setShowCreateForm(false);
+      setCreationMethod(null);
+      setTitle("");
+      setUrls([{ id: crypto.randomUUID(), value: "" }]);
+    } catch (error) {
+      console.error("Error creating flashcards from URLs:", error);
+      alert("Failed to create flashcards. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (showCreateForm) {
@@ -210,6 +247,19 @@ export default function FlashCardsPage() {
                 ← Back
               </Button>
               <div className="space-y-3">
+                <div>
+                  <label htmlFor="title" className="mb-2 block text-sm font-medium text-gray-700">
+                    Flashcard Set Title
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g., Web Development Resources"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                
                 {urls.map((url) => (
                   <div key={url.id} className="flex items-center gap-2">
                     <Input
@@ -239,6 +289,14 @@ export default function FlashCardsPage() {
                   <Plus className="h-4 w-4" />
                   Add URL
                 </Button>
+                
+                <Button
+                  onClick={handleUrlSubmit}
+                  disabled={!title.trim() || isUploading}
+                  className="w-full rounded-lg border border-black/30 bg-black text-white hover:bg-black/90"
+                >
+                  {isUploading ? "Scraping & Generating..." : "Generate Flashcards"}
+                </Button>
               </div>
             </div>
           )}
@@ -250,6 +308,59 @@ export default function FlashCardsPage() {
   return (
     <Card className="border-none shadow-none mt-10">
       <CardContent className="px-6">
+        {/* Stats Section */}
+        {stats && stats.totalCards > 0 && (
+          <div className="mb-6 grid grid-cols-4 gap-4">
+            <div className="rounded-lg border bg-white p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+                <span className="text-xs font-medium text-gray-600">Cards Studied</span>
+              </div>
+              <div className="text-2xl font-bold text-gray-900">{stats.totalCards}</div>
+            </div>
+            
+            <div className="rounded-lg border bg-white p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span className="text-xs font-medium text-gray-600">Correct</span>
+              </div>
+              <div className="text-2xl font-bold text-green-600">{stats.correctAnswers}</div>
+            </div>
+            
+            <div className="rounded-lg border bg-white p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <XCircle className="h-4 w-4 text-red-600" />
+                <span className="text-xs font-medium text-gray-600">Incorrect</span>
+              </div>
+              <div className="text-2xl font-bold text-red-600">{stats.incorrectAnswers}</div>
+            </div>
+            
+            <div className="rounded-lg border bg-white p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-purple-600" />
+                <span className="text-xs font-medium text-gray-600">Accuracy</span>
+              </div>
+              <div className="text-2xl font-bold text-purple-600">{stats.accuracy}%</div>
+            </div>
+            
+            {stats.mostDifficultCard && (
+              <div className="col-span-4 rounded-lg border border-orange-200 bg-orange-50 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="text-xs font-semibold text-orange-900 mb-1">Most Challenging Card</div>
+                    <div className="text-sm text-orange-800 mb-2">{stats.mostDifficultCard.question}</div>
+                    <div className="flex gap-4 text-xs text-orange-700">
+                      <span>❌ Failed: {stats.mostDifficultCard.incorrectCount} times</span>
+                      <span>✓ Correct: {stats.mostDifficultCard.correctCount} times</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="font-medium text-black text-sm">Your Flashcards</h2>

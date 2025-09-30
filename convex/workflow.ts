@@ -244,7 +244,6 @@ export const generateCourseWorkflow = workflow.define({
 						});
 					}
 					// Logic to Generate Video
-
 					const summarizedBlocks = await step.runAction(internal.workflow.summarizeBlocksAction, { blocks: blocks.map((block) => block.content) });
 
 					const payload = {

@@ -19,7 +19,7 @@ export function AppHeader() {
       <div className="flex items-center gap-8">
         <div className="flex items-center justify-start">
           <h1 className="flex flex-col justify-center font-medium text-[#2F3037] text-sm leading-5 sm:text-base md:text-lg lg:text-xl font-serif cursor-pointer">
-            Golb
+            Suma
           </h1>
         </div>
         <nav className="flex items-center gap-2">
@@ -45,7 +45,7 @@ export function AppHeader() {
             <Button 
               variant="link" 
               size="sm"
-              className={pathname.startsWith("/profile") ? "text-blue-600 font-semibold" : "text-gray-600 hover:text-gray-900"}
+              className={pathname.startsWith("/profile") ? "text-blue-600 font-semibold underline" : "text-gray-600 hover:text-gray-900"}
             >
               Profile
             </Button>

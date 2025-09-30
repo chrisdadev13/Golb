@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as course from "../course.js";
 import type * as files from "../files.js";
+import type * as firecrawl from "../firecrawl.js";
 import type * as flashcard from "../flashcard.js";
 import type * as http from "../http.js";
 import type * as leaderboard from "../leaderboard.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   course: typeof course;
   files: typeof files;
+  firecrawl: typeof firecrawl;
   flashcard: typeof flashcard;
   http: typeof http;
   leaderboard: typeof leaderboard;

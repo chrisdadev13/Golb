@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { mutation, query } from "./_generated/server";
+import { internalAction, mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import { workflow } from "./workflow";
 
@@ -62,7 +62,6 @@ export const createFlashcardSetFromUrls = mutation({
 		title: v.string(),
 		description: v.optional(v.string()),
 		sourceUrls: v.array(v.string()),
-		content: v.string(), // Combined scraped content from all URLs
 		targetCount: v.optional(v.number()),
 	},
 	handler: async (ctx, args) => {
@@ -85,11 +84,10 @@ export const createFlashcardSetFromUrls = mutation({
 			status: "processing",
 		});
 
-		// Trigger the workflow
-		await workflow.start(ctx, internal.workflow.generateFlashcardWorkflow, {
+		// Trigger internal action to scrape and process
+		await ctx.scheduler.runAfter(0, internal.flashcard.scrapeAndGenerateFlashcards, {
 			flashcardSetId,
-			content: args.content,
-			sourceType: "url",
+			sourceUrls: args.sourceUrls,
 			targetCount: args.targetCount,
 		});
 
@@ -219,6 +217,103 @@ export const recordFlashcardAnswer = mutation({
 				repetitions: 1,
 				correctCount: args.isCorrect ? 1 : 0,
 				incorrectCount: args.isCorrect ? 0 : 1,
+			});
+		}
+	},
+});
+
+/**
+ * Gets user's flashcard statistics
+ */
+export const getUserFlashcardStats = query({
+	handler: async (ctx) => {
+		const auth = await ctx.auth.getUserIdentity();
+		if (!auth) return null;
+
+		const user = await authComponent.getAuthUser(ctx);
+		if (!user) return null;
+
+		// Get all user progress records
+		const allProgress = await ctx.db
+			.query("userFlashcardProgress")
+			.filter((q) => q.eq(q.field("userId"), user._id))
+			.collect();
+
+		if (allProgress.length === 0) {
+			return {
+				totalCards: 0,
+				correctAnswers: 0,
+				incorrectAnswers: 0,
+				accuracy: 0,
+				mostDifficultCard: null,
+			};
+		}
+
+		// Calculate stats
+		const totalCorrect = allProgress.reduce((sum, p) => sum + p.correctCount, 0);
+		const totalIncorrect = allProgress.reduce((sum, p) => sum + p.incorrectCount, 0);
+		const totalAnswers = totalCorrect + totalIncorrect;
+		const accuracy = totalAnswers > 0 ? (totalCorrect / totalAnswers) * 100 : 0;
+
+		// Find most difficult card (highest incorrect count)
+		const mostDifficult = allProgress.reduce((max, p) => 
+			p.incorrectCount > (max?.incorrectCount || 0) ? p : max
+		, allProgress[0]);
+
+		// Get the flashcard details for most difficult
+		let mostDifficultCard = null;
+		if (mostDifficult && mostDifficult.incorrectCount > 0) {
+			const flashcard = await ctx.db.get(mostDifficult.flashcardId);
+			if (flashcard) {
+				mostDifficultCard = {
+					question: flashcard.question,
+					incorrectCount: mostDifficult.incorrectCount,
+					correctCount: mostDifficult.correctCount,
+				};
+			}
+		}
+
+		return {
+			totalCards: allProgress.length,
+			correctAnswers: totalCorrect,
+			incorrectAnswers: totalIncorrect,
+			accuracy: Math.round(accuracy),
+			mostDifficultCard,
+		};
+	},
+});
+
+/**
+ * Internal action to scrape URLs and generate flashcards
+ */
+export const scrapeAndGenerateFlashcards = internalAction({
+	args: {
+		flashcardSetId: v.id("flashcardSets"),
+		sourceUrls: v.array(v.string()),
+		targetCount: v.optional(v.number()),
+	},
+	handler: async (ctx, args) => {
+		try {
+			// Scrape URLs using Firecrawl
+			const scrapeResult = await ctx.runAction(internal.firecrawl.scrapeUrls, {
+				urls: args.sourceUrls,
+			});
+
+			// Trigger the workflow with scraped content - use workflow.start()
+			await workflow.start(ctx, internal.workflow.generateFlashcardWorkflow, {
+				flashcardSetId: args.flashcardSetId,
+				content: scrapeResult.content,
+				sourceType: "url",
+				targetCount: args.targetCount,
+			});
+		} catch (error) {
+			console.error("Error scraping and generating flashcards:", error);
+			
+			// Update flashcard set status to failed
+			await ctx.runMutation(internal.workflow.updateFlashcardSetStatus, {
+				flashcardSetId: args.flashcardSetId,
+				status: "failed",
+				errorMessage: error instanceof Error ? error.message : "Unknown error",
 			});
 		}
 	},

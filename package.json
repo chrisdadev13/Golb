@@ -13,6 +13,7 @@
     "@ai-sdk/mistral": "^2.0.17",
     "@ai-sdk/openai": "^2.0.39",
     "@convex-dev/better-auth": "^0.8.6",
+    "@convex-dev/resend": "^0.1.13",
     "@convex-dev/workflow": "^0.2.6",
     "@hookform/resolvers": "^5.2.2",
     "@mendable/firecrawl-js": "^4.3.6",

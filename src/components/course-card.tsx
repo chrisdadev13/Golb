@@ -23,7 +23,7 @@ export function CourseCard({ course, index }: CourseCardProps) {
         {index === 0 && (
           <div className="absolute -top-3 -right-1 z-10">
             <Badge variant="outline" className="bg-white">
-              New
+              Recent
             </Badge>
           </div>
         )}

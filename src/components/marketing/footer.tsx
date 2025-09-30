@@ -16,7 +16,7 @@ export function Footer() {
         <div className="flex-grow select-none overflow-hidden">
           <AnimatedTitle className="md:absolute md:-bottom-1/4 md:left-0 md:translate-x-0">
             <p className="pr-6 font-display text-[min(37vw,300px)] -tracking-widest dark:text-card-foreground">
-              Golb
+              Suma
             </p>
           </AnimatedTitle>
         </div>

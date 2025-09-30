@@ -3,7 +3,6 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
 import { getToken } from "#/lib/auth-server";
-import { env } from "#/env";
 
 export async function POST(request: Request) {
   try {

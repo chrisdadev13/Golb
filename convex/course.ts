@@ -687,3 +687,60 @@ export const generateBlocksForSection = mutation({
 		};
 	},
 });
+
+/**
+ * Gets user's courses with progress information for profile stats
+ */
+export const getUserCourses = query({
+	handler: async (ctx) => {
+		const authed = await ctx.auth.getUserIdentity();
+		if (!authed) return [];
+
+		const user = await authComponent.getAuthUser(ctx);
+		if (!user) return [];
+
+		const courses = await ctx.db
+			.query("courses")
+			.withIndex("by_user", (q) => q.eq("userId", user._id))
+			.collect();
+
+		// Add progress information to each course
+		const coursesWithProgress = await Promise.all(
+			courses.map(async (course) => {
+				// Get all levels for this course
+				const levels = await ctx.db
+					.query("levels")
+					.withIndex("by_course", (q) => q.eq("courseId", course._id))
+					.collect();
+
+				// Get all sections for these levels
+				const allSections = await ctx.db
+					.query("sections")
+					.withIndex("by_level")
+					.collect();
+
+				const courseSections = allSections.filter((section) =>
+					levels.some((level) => level._id === section.levelId),
+				);
+
+				const totalSections = courseSections.length;
+				const completedSections = courseSections.filter(
+					(section) => section.status === "completed",
+				).length;
+
+				const isCompleted = totalSections > 0 && completedSections === totalSections;
+
+				return {
+					...course,
+					progress: {
+						totalSections,
+						completedSections,
+						isCompleted,
+					},
+				};
+			}),
+		);
+
+		return coursesWithProgress;
+	},
+});

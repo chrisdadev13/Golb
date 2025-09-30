@@ -169,7 +169,7 @@ export default function FlashcardStudyPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <div className="flex min-h-screen flex-col">
       {/* Header */}
       <div className="border-b bg-white px-6 py-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
@@ -229,7 +229,7 @@ export default function FlashcardStudyPage() {
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-2xl">
           {/* Question Card */}
-          <div className="mb-8 rounded-xl border bg-white p-8 shadow-sm">
+          <div className="mb-8 rounded-xl bg-white p-0">
             <div className="mb-2 text-xs font-medium text-gray-500 uppercase">
               Question {currentCardIndex + 1}
             </div>
@@ -359,12 +359,16 @@ export default function FlashcardStudyPage() {
 
           {/* Action Button */}
           {!showAnswer ? (
-            <FancyButton 
-              onClick={handleRevealAnswer} 
+            <FancyButton
+              onClick={handleRevealAnswer}
               disabled={isVerifying}
               className="w-full"
             >
-              {isVerifying ? "Verifying Answer..." : "Show Answer"}
+              {isVerifying 
+                ? "Verifying Answer..." 
+                : currentCard.questionType === "text" && selectedAnswer.trim()
+                ? "Check Response"
+                : "Show Answer"}
             </FancyButton>
           ) : (
             <div className="flex gap-4">
