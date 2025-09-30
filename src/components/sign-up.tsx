@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { Mail } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -25,7 +26,8 @@ export default function SignUpForm({
 }: {
   onSwitchToSignIn: () => void;
 }) {
-  const router = useRouter();
+  const [showVerificationScreen, setShowVerificationScreen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
 
   const form = useForm<z.infer<typeof schema>>({
     defaultValues: {
@@ -45,8 +47,9 @@ export default function SignUpForm({
       },
       {
         onSuccess: () => {
-          router.push("/home");
-          toast.success("Sign up successful");
+          setUserEmail(values.email);
+          setShowVerificationScreen(true);
+          toast.success("Account created! Please check your email.");
         },
         onError: (error) => {
           toast.error(error.error.message || error.error.statusText);
@@ -54,6 +57,50 @@ export default function SignUpForm({
       },
     );
   };
+
+  // Show verification screen after successful signup
+  if (showVerificationScreen) {
+    return (
+      <div className="mx-auto w-full mt-10 max-w-md p-6">
+        <div className="flex flex-col items-center text-center space-y-6">
+          <div className="rounded-full bg-indigo-100 p-6">
+            <Mail className="h-12 w-12 text-indigo-600" />
+          </div>
+          
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold">Check your email</h1>
+            <p className="text-gray-600">
+              We've sent a verification link to
+            </p>
+            <p className="font-semibold text-indigo-600">{userEmail}</p>
+          </div>
+
+          <div className="space-y-4 w-full">
+            <p className="text-sm text-gray-500">
+              Click the link in the email to verify your account and get started.
+            </p>
+            
+            <div className="pt-4 border-t">
+              <p className="text-sm text-gray-500 mb-2">
+                Didn't receive the email?
+              </p>
+              <p className="text-xs text-gray-400">
+                Check your spam folder or contact support if you need help.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="link"
+            onClick={onSwitchToSignIn}
+            className="text-indigo-600 hover:text-indigo-800"
+          >
+            Back to Sign In
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full mt-10 max-w-md p-6">

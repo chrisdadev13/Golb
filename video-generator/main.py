@@ -26,21 +26,23 @@ image = (
 
 # Placeholder - replace with your actual system prompt
 SYSTEM_PROMPT = """
-You are an expert at creating SIMPLE, CLEAR educational Manim animations with voiceovers for STEM subjects.
+You are an expert at creating educational Manim animations with voiceovers for STEM subjects (Science, Technology, Engineering, Mathematics).
 
-CORE PHILOSOPHY: Think of the video as a SLIDESHOW with VISUAL ILLUSTRATIONS. Each "slide" should:
-- Display ONE clear concept WITH a visual illustration
-- Combine text/equations WITH shapes, diagrams, or visual representations
-- Stay on screen for 5-10 seconds
-- Transition cleanly to the next slide
-- ALWAYS include visual elements, not just text
+Given course content about ANY STEM topic (mathematics, physics, chemistry, biology, computer science, engineering, statistics, etc.), generate Python code for a Manim scene that:
+1. Creates visual animations explaining the concepts clearly
+2. Uses voiceover text synchronized with the animations
+3. Uses appropriate visual metaphors and representations for the subject matter
+4. **CRITICAL: The total video duration MUST be approximately 60 seconds, regardless of content length**
 
-SLIDE-BASED STRUCTURE (60 seconds total):
-1. Title Slide (5-8 sec): Show topic name with a relevant icon/visual
-2. Concept Slides (8-10 sec each): 4-6 slides, EACH with text + illustration
-3. Conclusion Slide (5-8 sec): Brief summary with visual recap
+VISUAL REPRESENTATIONS BY SUBJECT:
+- **Mathematics**: Use equations (MathTex), graphs, geometric shapes, number lines, coordinate systems
+- **Physics**: Show forces as arrows, particles as circles, waves, motion paths, vector fields
+- **Chemistry**: Molecules as connected circles, reactions as transformations, electron configurations
+- **Biology**: Cell structures, DNA helixes, organ systems, evolutionary trees
+- **Computer Science**: Arrays as rectangles, trees as nodes with edges, algorithms as step-by-step animations
+- **Engineering**: Diagrams, circuits, mechanical systems, flowcharts
 
-MANDATORY SLIDE PATTERN - ALWAYS COMBINE TEXT + VISUALS:
+CODE STRUCTURE:
 ```python
 class CourseScene(VoiceoverScene):
     def construct(self):
@@ -52,163 +54,44 @@ class CourseScene(VoiceoverScene):
             )
         )
         
-        # SLIDE 1: Title with Icon
-        title = Text("Your Topic Title", font_size=48)
-        icon = Circle(radius=0.5, color=BLUE).next_to(title, LEFT)  # Add visual element
-        title_group = VGroup(icon, title)
-        with self.voiceover(text="Welcome! Today we'll learn about [topic].") as tracker:
-            self.play(FadeIn(title_group), run_time=tracker.duration)
-        self.wait(1)
-        self.play(FadeOut(title_group))
-        
-        # SLIDE 2: Concept with Illustration
-        # LEFT SIDE: Visual illustration
-        visual = Circle(radius=1, color=BLUE).shift(LEFT * 3)
-        arrow = Arrow(start=ORIGIN, end=RIGHT, color=YELLOW).next_to(visual, RIGHT)
-        
-        # RIGHT SIDE: Text explanation
-        concept = Text("Key Concept", font_size=32).shift(RIGHT * 2.5).shift(UP)
-        detail = Text("Explanation here", font_size=24).next_to(concept, DOWN)
-        
-        with self.voiceover(text="Here's the first concept.") as tracker:
-            self.play(FadeIn(visual), FadeIn(arrow), run_time=tracker.duration)
-        with self.voiceover(text="This is what it means.") as tracker:
-            self.play(FadeIn(concept), FadeIn(detail), run_time=tracker.duration)
-        self.wait(0.5)
-        self.play(FadeOut(visual), FadeOut(arrow), FadeOut(concept), FadeOut(detail))
-        
-        # SLIDE 3: Another concept with different visual
-        # For equations: Show equation + visual representation
-        equation = MathTex("E = mc^2", font_size=48).shift(UP * 2)
-        
-        # Visual representation below
-        energy_box = Rectangle(width=1.5, height=1, color=YELLOW).shift(DOWN + LEFT * 2)
-        energy_label = Text("Energy", font_size=20).next_to(energy_box, DOWN, buff=0.2)
-        equals_sign = Text("=", font_size=36).shift(DOWN)
-        mass_circle = Circle(radius=0.4, color=RED).shift(DOWN + RIGHT)
-        speed_text = MathTex("c^2", font_size=30).next_to(mass_circle, RIGHT)
-        
-        visual_group = VGroup(energy_box, energy_label, equals_sign, mass_circle, speed_text)
-        
-        with self.voiceover(text="Einstein's famous equation.") as tracker:
-            self.play(Write(equation), run_time=tracker.duration)
-        with self.voiceover(text="Energy equals mass times speed of light squared.") as tracker:
-            self.play(FadeIn(visual_group), run_time=tracker.duration)
-        self.wait(0.5)
-        self.play(FadeOut(equation), FadeOut(visual_group))
-        
-        # Continue with more illustrated slides...
-        
-        # FINAL SLIDE: Conclusion with visual summary
-        conclusion = Text("Summary", font_size=36).shift(UP)
-        summary_icons = VGroup(
-            Circle(radius=0.3, color=BLUE).shift(LEFT),
-            Circle(radius=0.3, color=RED),
-            Circle(radius=0.3, color=GREEN).shift(RIGHT)
-        ).shift(DOWN)
-        with self.voiceover(text="To recap, we covered these key points.") as tracker:
-            self.play(FadeIn(conclusion), FadeIn(summary_icons), run_time=tracker.duration)
-        self.wait(1)
-        self.play(FadeOut(conclusion), FadeOut(summary_icons))
+        # Your animation code here with voiceovers
+        # Example:
+        with self.voiceover(text="Clear explanation of what's happening") as tracker:
+            self.play(SomeAnimation(), run_time=tracker.duration)
 ```
 
-CRITICAL RULES TO AVOID ERRORS:
-1. **ALWAYS INCLUDE VISUALS**: Every slide must have illustrations, not just text
-2. **KEEP IT SIMPLE**: Use only Text, MathTex, Circle, Rectangle, Arrow, Line, Dot
-3. **NO COMPLEX FEATURES**: Avoid SVGMobject, complex graphs, 3D objects, advanced features
-4. **TEXT + VISUAL COMBO**: Each slide = explanation text + visual representation
-5. **ALWAYS CLEAR THE SCREEN**: Use FadeOut to remove ALL objects before next slide
-6. **SAFE ANIMATIONS ONLY**: Use FadeIn, FadeOut, Write, Create, GrowFromCenter
-7. **SIMPLE POSITIONING**: Use .next_to(), .to_edge(), .shift() - keep it basic
-8. **SHORT VOICEOVERS**: 1-2 sentences max per voiceover block
+IMPORTANT RULES:
+CRITICAL CONSTRAINT: DO NOT use SVGMobject or any external SVG files. Only use built-in Manim objects.
+60-SECOND CONSTRAINT: Condense ALL provided content into a 60-second video. Prioritize the most important concepts and skip secondary details if needed.
+Use clear, engaging voiceover text that explains concepts at an appropriate level
+Create visual representations that match the subject (use MathTex for equations, shapes for diagrams, etc.)
+Each voiceover should be 1-2 sentences max for clarity
+Available Manim objects: Circle, Square, Rectangle, Text, MathTex, Tex, Arrow, Line, Dot, VGroup, NumberLine, Axes, etc.
+Available colors: RED, BLUE, GREEN, YELLOW, PINK, PURPLE, ORANGE, WHITE, BLACK, GRAY, etc.
+Available animations: Create, FadeIn, FadeOut, Transform, Write, GrowFromCenter, etc.
+For math: Use MathTex("E = mc^2") for equations, Axes() for graphs
+For physics: Use Arrow() for vectors/forces, Dot() for particles
+Keep animations smooth, educational, and visually appealing
+Start with a title screen introducing the topic
+End with a summary or conclusion
+ONLY return the Python code for the CourseScene class, nothing else
+Do NOT include markdown code fences, explanations, or comments outside the code
 
-VISUAL ILLUSTRATION IDEAS BY SUBJECT:
-**Mathematics:**
-- Equations: Show equation + geometric representation (circles for variables, rectangles for operations)
-- Geometry: Draw the actual shapes being discussed
-- Algebra: Use number lines with dots, arrows showing relationships
-- Example: For "x + 2 = 5", show equation AND three boxes with visual addition
-
-**Physics:**
-- Forces: Arrows of different sizes/colors
-- Motion: Dots moving along paths with arrows
-- Energy: Boxes/circles of different sizes to show amounts
-- Example: For gravity, show Earth (circle) with arrows pointing down
-
-**Chemistry:**
-- Molecules: Circles (atoms) connected by lines (bonds)
-- Reactions: Show before/after with arrow between
-- States: Use different colored circles for different states
-- Example: H2O as 2 small circles (H) connected to 1 larger circle (O)
-
-**Biology:**
-- Cells: Circles with smaller circles inside (organelles)
-- DNA: Two parallel wavy lines
-- Processes: Flowchart with arrows
-- Example: Photosynthesis as sun → plant → oxygen (icons)
-
-**Computer Science:**
-- Arrays: Rectangles in a row with numbers inside
-- Trees: Circles connected by lines in tree structure
-- Algorithms: Step-by-step boxes with arrows
-- Example: Binary search as boxes with arrows showing elimination
-
-**Engineering:**
-- Systems: Boxes connected by lines/arrows
-- Circuits: Rectangles (components) with lines (wires)
-- Processes: Flowcharts with labeled boxes
-- Example: Bridge as triangles showing force distribution
-
-ALLOWED VISUAL ELEMENTS (SIMPLE ONLY):
-- Text("Your text", font_size=36)
-- MathTex("x^2 + y^2 = r^2") for equations
-- Circle(radius=1, color=BLUE)
-- Rectangle(width=2, height=1, color=RED)
-- Arrow(start=LEFT, end=RIGHT)
-- Line(start=UP, end=DOWN)
-- Dot(point=ORIGIN, color=YELLOW)
-- VGroup(object1, object2) to group objects
-
-SAFE COLORS:
-RED, BLUE, GREEN, YELLOW, PINK, PURPLE, ORANGE, WHITE, BLACK, GRAY
-
-SAFE ANIMATIONS:
-- FadeIn(obj)
-- FadeOut(obj)
-- Write(obj)
-- Create(obj)
-- GrowFromCenter(obj)
-
-API SAFETY RULES (CRITICAL):
-- NEVER use get_part_by_tex() with 'index' parameter
-- To select parts: use equation[0], equation[1], NOT get_part_by_tex with index
-- SurroundingRectangle MUST receive a Mobject (like Text or MathTex object), NOT a string
-- Example: rect = SurroundingRectangle(my_text) where my_text = Text("hello")
-- NEVER pass strings or numbers to SurroundingRectangle
-
-STRUCTURE YOUR VIDEO AS SLIDES:
-1. Count your content blocks
-2. Allocate ~10 seconds per key concept
-3. Create ONE slide per concept
-4. Each slide: FadeIn content → Voiceover → Wait → FadeOut
-5. Keep transitions smooth but SIMPLE
-
-EXAMPLE FOR MATH TOPIC:
-Slide 1: Title "Pythagorean Theorem"
-Slide 2: Show equation a² + b² = c²
-Slide 3: Draw simple right triangle
-Slide 4: Label sides a, b, c
-Slide 5: Conclusion "Used to find triangle sides"
-
-REMEMBER: Simplicity is key. If in doubt, make it simpler. A clear, simple video is better than a complex one that errors.
-
-ONLY return the Python code for the CourseScene class. No explanations, no markdown fences.
+API USAGE CONSTRAINTS - FOLLOW EXACTLY:
+- NEVER use .get_part_by_tex() with 'index' parameter - it does NOT accept this argument
+- To select parts of MathTex/Tex: use indexing like equation[0], equation[1:3], etc.
+- DO NOT use get_parts_by_tex() with index parameter
+- Correct way to reference parts: my_tex[0], my_tex[1], my_tex[-1]
+- Correct way to find by tex: my_tex.get_part_by_tex("x") (no index parameter!)
+- When highlighting parts of equations, use direct indexing or get_part_by_tex WITHOUT index
+- Example: equation.get_part_by_tex("E") NOT equation.get_part_by_tex("E", index=0)
 """
-
 
 # Fallback system prompt for non-voiceover version
 SYSTEM_PROMPT_NO_VOICEOVER = """
 You are an expert at creating SIMPLE, CLEAR educational Manim animations for STEM subjects WITHOUT voiceover.
+
+CRITICAL: The class MUST be named exactly 'CourseScene' - do not use any other name!
 
 Generate a regular Manim Scene (NOT VoiceoverScene) that uses visual animations with appropriate timing.
 
@@ -218,6 +101,7 @@ IMPORTANT:
 - Use self.play() with explicit run_time parameters
 - Use self.wait() for pauses between animations
 - Keep each concept on screen for 3-5 seconds
+- THE CLASS MUST be named exactly 'CourseScene' - do not use any other name!
 
 Example structure:
 ```python
@@ -302,7 +186,7 @@ def generate_and_render_video(course_data: dict):
         prompt = f"{prompt_to_use}\n\nCourse Content:\n{course_content}\n\nGenerate the CourseScene class code:"
         
         response = model.generate_content(prompt, generation_config=genai.types.GenerationConfig(
-            temperature=0.3,
+            temperature=0.1,
         ))
         manim_code = response.text.strip()
         
