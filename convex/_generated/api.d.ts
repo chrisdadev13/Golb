@@ -16,6 +16,7 @@ import type * as firecrawl from "../firecrawl.js";
 import type * as flashcard from "../flashcard.js";
 import type * as http from "../http.js";
 import type * as leaderboard from "../leaderboard.js";
+import type * as userSettings from "../userSettings.js";
 import type * as workflow from "../workflow.js";
 
 import type {
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   flashcard: typeof flashcard;
   http: typeof http;
   leaderboard: typeof leaderboard;
+  userSettings: typeof userSettings;
   workflow: typeof workflow;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

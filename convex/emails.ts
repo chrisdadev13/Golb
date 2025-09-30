@@ -3,7 +3,9 @@ import { components } from "./_generated/api";
 import { Resend } from "@convex-dev/resend";
 import { internalMutation } from "./_generated/server";
 
-export const resend: Resend = new Resend(components.resend, {});
+export const resend: Resend = new Resend(components.resend, {
+  testMode: false
+});
 
 /**
  * Sends an email notification when a course is ready

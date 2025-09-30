@@ -13,7 +13,7 @@ export const scrapeUrls = internalAction({
 	args: {
 		urls: v.array(v.string()),
 	},
-	handler: async (ctx, args) => {
+	handler: async (_, args) => {
 		try {
 			// Scrape all URLs in parallel
 			const scrapePromises = args.urls.map(async (url) => {

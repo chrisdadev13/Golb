@@ -19,6 +19,7 @@ import {
 	internalQuery,
 } from "./_generated/server";
 import { Mistral } from '@mistralai/mistralai';
+import { authComponent } from "./auth";
 
 
 // ============================================================================
@@ -100,7 +101,6 @@ export const generateFlashcardWorkflow = workflow.define({
 					questionType: flashcard.questionType,
 					difficulty: flashcard.difficulty,
 					explanation: flashcard.explanation,
-					sourceExcerpt: flashcard.sourceExcerpt,
 					orderIndex: flashcard.orderIndex,
 				});
 			}
@@ -110,6 +110,12 @@ export const generateFlashcardWorkflow = workflow.define({
 				flashcardSetId: args.flashcardSetId,
 				cardCount: flashcards.length,
 				status: "completed",
+			});
+
+			// Step 6: Send email notification if user has enabled it
+			await step.runMutation(internal.workflow.sendFlashcardReadyNotification, {
+				flashcardSetId: args.flashcardSetId,
+				cardCount: flashcards.length,
 			});
 
 			return "Flashcard generation completed successfully";
@@ -277,6 +283,11 @@ export const generateCourseWorkflow = workflow.define({
 			await step.runMutation(internal.workflow.updateCourseStatus, {
 				courseId: args.courseId,
 				status: toCourseStatus("ready"),
+			});
+
+			// Step 8: Send email notification if user has enabled it
+			await step.runMutation(internal.workflow.sendCourseReadyNotification, {
+				courseId: args.courseId,
 			});
 
 			return "Course generation completed successfully";
@@ -1234,5 +1245,75 @@ export const processDocumentAction = internalAction({
 	},
 	handler: async (_, args) => {
 		return await processDocument({ documentUrl: args.documentUrl });
+	},
+});
+
+/**
+ * Sends course ready email notification based on user settings
+ */
+export const sendCourseReadyNotification = internalMutation({
+	args: {
+		courseId: v.id("courses"),
+	},
+	handler: async (ctx, args) => {
+		// Get course details
+		const course = await ctx.db.get(args.courseId);
+		if (!course) return;
+
+		// Get user from auth component
+		const user = await authComponent.getAnyUserById(ctx, course.userId);
+		if (!user) return;
+
+		// Check user settings
+		const settings = await ctx.db
+			.query("userSettings")
+			.filter((q) => q.eq(q.field("userId"), course.userId))
+			.first();
+
+		// Send email if user has enabled notifications (default to true if no settings)
+		if (!settings || settings.notifyWhenCourseIsReady) {
+			await ctx.scheduler.runAfter(0, internal.emails.sendCourseReadyEmail, {
+				userEmail: user.email,
+				userName: user.name,
+				courseTitle: course.title,
+				courseId: course._id,
+			});
+		}
+	},
+});
+
+/**
+ * Sends flashcard ready email notification based on user settings
+ */
+export const sendFlashcardReadyNotification = internalMutation({
+	args: {
+		flashcardSetId: v.id("flashcardSets"),
+		cardCount: v.number(),
+	},
+	handler: async (ctx, args) => {
+		// Get flashcard set details
+		const flashcardSet = await ctx.db.get(args.flashcardSetId);
+		if (!flashcardSet) return;
+
+		// Get user from auth component
+		const user = await authComponent.getAnyUserById(ctx, flashcardSet.userId);
+		if (!user) return;
+
+		// Check user settings
+		const settings = await ctx.db
+			.query("userSettings")
+			.filter((q) => q.eq(q.field("userId"), flashcardSet.userId))
+			.first();
+
+		// Send email if user has enabled notifications (default to true if no settings)
+		if (!settings || settings.notifyWhenFlashcardSetIsReady) {
+			await ctx.scheduler.runAfter(0, internal.emails.sendFlashcardsReadyEmail, {
+				userEmail: user.email,
+				userName: user.name,
+				flashcardSetTitle: flashcardSet.title,
+				flashcardSetId: flashcardSet._id,
+				cardCount: args.cardCount,
+			});
+		}
 	},
 });

@@ -1,16 +1,20 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { BookOpen, GraduationCap, Trophy, Zap } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
+import { BookOpen, GraduationCap, Trophy, Zap, Bell, Mail, Calendar } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui/avatar";
 import { Card, CardContent } from "#/components/ui/card";
 import { Skeleton } from "#/components/ui/skeleton";
+import { Switch } from "#/components/ui/switch";
+import { Label } from "#/components/ui/label";
 import { api } from "../../../../../convex/_generated/api";
 
 export default function ProfilePage() {
   const user = useQuery(api.auth.getCurrentUser);
   const flashcardStats = useQuery(api.flashcard.getUserFlashcardStats);
   const courses = useQuery(api.course.getUserCourses);
+  const settings = useQuery(api.userSettings.getUserSettings);
+  const updateSettings = useMutation(api.userSettings.updateUserSettings);
 
   if (!user) {
     return (
@@ -77,8 +81,8 @@ export default function ProfilePage() {
             {/* Total Courses */}
             <div className="rounded-lg border bg-white p-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50">
-                  <BookOpen className="h-6 w-6 text-blue-300" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100">
+                  <BookOpen className="h-6 w-6 text-gray-700" strokeWidth={1.5} />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{totalCourses}</div>
@@ -90,8 +94,8 @@ export default function ProfilePage() {
             {/* Completed Courses */}
             <div className="rounded-lg border bg-white p-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-50">
-                  <GraduationCap className="h-6 w-6 text-green-300" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100">
+                  <GraduationCap className="h-6 w-6 text-gray-700" strokeWidth={1.5} />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{completedCourses}</div>
@@ -103,8 +107,8 @@ export default function ProfilePage() {
             {/* Flashcards Studied */}
             <div className="rounded-lg border bg-white p-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-50">
-                  <Zap className="h-6 w-6 text-purple-300" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100">
+                  <Zap className="h-6 w-6 text-gray-700" strokeWidth={1.5} />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{totalFlashcards}</div>
@@ -116,14 +120,107 @@ export default function ProfilePage() {
             {/* Accuracy */}
             <div className="rounded-lg border bg-white p-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-50">
-                  <Trophy className="h-6 w-6 text-orange-300" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100">
+                  <Trophy className="h-6 w-6 text-gray-700" strokeWidth={1.5} />
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{accuracy}%</div>
                   <div className="text-sm text-gray-600">Accuracy</div>
                 </div>
               </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Settings */}
+      <Card className="border-none shadow-none mt-6">
+        <CardContent className="px-6 py-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Notification Settings</h2>
+          
+          <div className="space-y-6">
+            {/* Course Ready Notification */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+                  <Bell className="h-5 w-5 text-gray-700" strokeWidth={1.5} />
+                </div>
+                <div className="space-y-0.5">
+                  <Label htmlFor="course-notify" className="text-sm font-medium text-gray-900">
+                    Course Ready Notifications
+                  </Label>
+                  <p className="text-sm text-gray-500">
+                    Get notified when your course generation is complete
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="course-notify"
+                checked={settings?.notifyWhenCourseIsReady ?? true}
+                onCheckedChange={(checked) => {
+                  updateSettings({
+                    notifyWhenCourseIsReady: checked,
+                    notifyWhenFlashcardSetIsReady: settings?.notifyWhenFlashcardSetIsReady ?? true,
+                    sendDailyProblems: settings?.sendDailyProblems ?? true,
+                  });
+                }}
+              />
+            </div>
+
+            {/* Flashcard Ready Notification */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+                  <Mail className="h-5 w-5 text-gray-700" strokeWidth={1.5} />
+                </div>
+                <div className="space-y-0.5">
+                  <Label htmlFor="flashcard-notify" className="text-sm font-medium text-gray-900">
+                    Flashcard Ready Notifications
+                  </Label>
+                  <p className="text-sm text-gray-500">
+                    Get notified when your flashcard set is ready to study
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="flashcard-notify"
+                checked={settings?.notifyWhenFlashcardSetIsReady ?? true}
+                onCheckedChange={(checked) => {
+                  updateSettings({
+                    notifyWhenCourseIsReady: settings?.notifyWhenCourseIsReady ?? true,
+                    notifyWhenFlashcardSetIsReady: checked,
+                    sendDailyProblems: settings?.sendDailyProblems ?? true,
+                  });
+                }}
+              />
+            </div>
+
+            {/* Daily Problems */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+                  <Calendar className="h-5 w-5 text-gray-700" strokeWidth={1.5} />
+                </div>
+                <div className="space-y-0.5">
+                  <Label htmlFor="daily-problems" className="text-sm font-medium text-gray-900">
+                    Daily Problems
+                  </Label>
+                  <p className="text-sm text-gray-500">
+                    Receive daily practice problems to keep learning
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="daily-problems"
+                checked={settings?.sendDailyProblems ?? true}
+                onCheckedChange={(checked) => {
+                  updateSettings({
+                    notifyWhenCourseIsReady: settings?.notifyWhenCourseIsReady ?? true,
+                    notifyWhenFlashcardSetIsReady: settings?.notifyWhenFlashcardSetIsReady ?? true,
+                    sendDailyProblems: checked,
+                  });
+                }}
+              />
             </div>
           </div>
         </CardContent>

@@ -3,7 +3,7 @@
 import { api } from "../../../../../../../convex/_generated/api";
 import type { Id } from "../../../../../../../convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeft, BookOpen, Flame, Trophy } from "lucide-react";
+import { ArrowLeft, Flame, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -17,6 +17,7 @@ import {
 } from "#/components/ui/stepper";
 import UserMenu from "#/components/user-menu";
 import { Button } from "#/components/ui/button";
+import { Skeleton } from "#/components/ui/skeleton";
 
 export default function LearnSectionPage() {
   const params = useParams();
@@ -234,12 +235,15 @@ export default function LearnSectionPage() {
   // Show loading state
   if (!blocks) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="text-center">
-          <BookOpen className="mx-auto mb-4 h-12 w-12 animate-pulse text-gray-400" />
-          <h1 className="mb-4 font-bold text-2xl text-gray-900">
-            Loading content...
-          </h1>
+      <div className="flex min-h-screen flex-col bg-white">
+        <div className="mx-auto w-full max-w-4xl space-y-6 p-8">
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <div className="space-y-4 mt-8">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
         </div>
       </div>
     );
