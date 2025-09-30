@@ -26,6 +26,7 @@ export default function LearnSectionPage() {
 
 	// Fetch blocks data from Convex with user progress
 	const blocks = useQuery(api.course.getBlocksBySection, { sectionId });
+	const section = useQuery(api.course.getSectionById, { sectionId });
 
 	// Mutations
 	const completeContentBlock = useMutation(api.course.completeContentBlock);
@@ -269,6 +270,29 @@ export default function LearnSectionPage() {
 
 			{/* Main Content - Render All Visible Blocks */}
 			<div className="mx-auto max-w-3xl px-6 py-8">
+				{/* Section Title */}
+				{section?.videoUrl && section?.title && (
+					<h1 className="mb-8 font-bold text-3xl text-gray-900 px-10">
+						{section.title}
+					</h1>
+				)}
+
+				{/* Video Section */}
+				{section?.videoUrl && (
+					<div className="mb-16 px-10">
+						<div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-100">
+							<video
+								controls
+								className="h-full w-full object-cover"
+								src={section.videoUrl}
+							>
+								<track kind="captions" />
+								Your browser does not support the video tag.
+							</video>
+						</div>
+					</div>
+				)}
+
 				<div className="space-y-16 last:pb-32">
 					{blocks.map((block, index) => {
 						return (

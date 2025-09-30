@@ -15,11 +15,63 @@ export const getCourses = query({
 			return;
 		}
 
-		return await ctx.db
+		const courses = await ctx.db
 			.query("courses")
 			.withIndex("by_user", (q) => q.eq("userId", user._id))
 			.order("desc")
 			.collect();
+
+		// Enrich each course with progress information
+		const coursesWithProgress = await Promise.all(
+			courses.map(async (course) => {
+				// Get all levels for this course
+				const levels = await ctx.db
+					.query("levels")
+					.withIndex("by_course", (q) => q.eq("courseId", course._id))
+					.collect();
+
+				// Get all sections for these levels
+				const allSections = await ctx.db
+					.query("sections")
+					.withIndex("by_level")
+					.collect();
+
+				const courseSections = allSections.filter((section) =>
+					levels.some((level) => level._id === section.levelId)
+				);
+
+				// Count completed sections
+				const completedSections = courseSections.filter(
+					(section) => section.status === "completed"
+				).length;
+
+				const totalSections = courseSections.length;
+
+				// Get user progress for last accessed time
+				const userProgress = await ctx.db
+					.query("userProgress")
+					.withIndex("by_user_course", (q) =>
+						q.eq("userId", user._id).eq("courseId", course._id)
+					)
+					.first();
+
+				return {
+					...course,
+					progress: {
+						completedSections,
+						totalSections,
+						lastAccessedAt: userProgress?.lastAccessedAt || course._creationTime,
+					},
+				};
+			})
+		);
+
+		// Sort by last accessed (most recent first)
+		coursesWithProgress.sort((a, b) => 
+			b.progress.lastAccessedAt - a.progress.lastAccessedAt
+		);
+
+		return coursesWithProgress;
 	},
 });
 
@@ -426,6 +478,22 @@ function normalizeMultiselectAnswer(answer: string | undefined): string {
 		.sort()
 		.join(",");
 }
+
+export const getSectionById = query({
+	args: { sectionId: v.id("sections") },
+	handler: async (ctx, args) => {
+		const authed = await ctx.auth.getUserIdentity();
+		if (!authed) return;
+
+		const user = await authComponent.getAuthUser(ctx);
+		if (!user) {
+			return;
+		}
+
+		const section = await ctx.db.get(args.sectionId);
+		return section;
+	},
+});
 
 export const getBlocksBySection = query({
 	args: { sectionId: v.id("sections") },

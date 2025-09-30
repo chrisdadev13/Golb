@@ -5,7 +5,13 @@ import { Badge } from "#/components/ui/badge";
 import type { Doc } from "../../convex/_generated/dataModel";
 
 interface CourseCardProps {
-  course: Doc<"courses">;
+  course: Doc<"courses"> & {
+    progress?: {
+      completedSections: number;
+      totalSections: number;
+      lastAccessedAt: number;
+    };
+  };
   index: number;
 }
 
@@ -56,6 +62,29 @@ export function CourseCard({ course, index }: CourseCardProps) {
           <h3 className="font-medium text-gray-900 text-sm mb-1 line-clamp-1">
             {course.title}
           </h3>
+          
+          {/* Progress bar */}
+          {course.progress && course.progress.totalSections > 0 && (
+            <div className="mb-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-500">
+                  {course.progress.completedSections} / {course.progress.totalSections} sections
+                </span>
+                <span className="text-xs font-medium text-gray-700">
+                  {Math.round((course.progress.completedSections / course.progress.totalSections) * 100)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                <div
+                  className="bg-orange-400 h-1.5 rounded-full transition-all"
+                  style={{
+                    width: `${(course.progress.completedSections / course.progress.totalSections) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <Avatar className="size-4 rounded-full border border-gray-300">
               <AvatarImage
