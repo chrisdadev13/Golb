@@ -11,6 +11,7 @@ export default defineSchema({
       v.literal("ready"),
       v.literal("failed"),
     ),
+    errorMessage: v.optional(v.string()),
     prerequisites: v.optional(v.array(v.string())),
     nextSteps: v.optional(v.array(v.string())),
     topics: v.optional(v.array(v.string())),
@@ -117,4 +118,57 @@ export default defineSchema({
   })
     .index("by_user_section", ["userId", "sectionId"])
     .index("by_user_block", ["userId", "blockId"]),
+  flashcardSets: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+
+    // Source type: either "file" or "url"
+    sourceType: v.union(v.literal("file"), v.literal("url")),
+
+    // For file uploads
+    sourceFileId: v.optional(v.id("_storage")), // Convex storage ID
+    sourceFileName: v.optional(v.string()),
+    sourceFileType: v.optional(v.string()),
+
+    // For URL sources
+    sourceUrls: v.optional(v.array(v.string())), // Array of URLs used to generate flashcards
+
+    contentSummary: v.optional(v.string()),
+    cardCount: v.number(),
+    status: v.union(
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    errorMessage: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_source_type", ["sourceType"]),
+
+  flashcards: defineTable({
+    setId: v.id("flashcardSets"),
+    question: v.string(),
+    answer: v.string(),
+    questionType: v.optional(v.union(v.literal("multiple_choice"), v.literal("true_false"), v.literal("text"), v.literal("select"))),
+    difficulty: v.optional(v.union(v.literal("easy"), v.literal("medium"), v.literal("hard"))),
+    explanation: v.optional(v.string()),
+    sourceExcerpt: v.optional(v.string()),
+    orderIndex: v.number(),
+  })
+    .index("by_set", ["setId", "orderIndex"]),
+  userFlashcardProgress: defineTable({
+    userId: v.string(),
+    flashcardId: v.id("flashcards"),
+    lastReviewedAt: v.optional(v.number()),
+    nextReviewAt: v.optional(v.number()),
+    easeFactor: v.number(),
+    intervalDays: v.number(),
+    repetitions: v.number(),
+    correctCount: v.number(),
+    incorrectCount: v.number(),
+  })
+    .index("by_user_and_card", ["userId", "flashcardId"])
+    .index("by_next_review", ["userId", "nextReviewAt"]),
 });

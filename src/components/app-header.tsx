@@ -1,6 +1,6 @@
 "use client";
 
-import { Authenticated, useConvexAuth, useQuery } from "convex/react";
+import { Authenticated, useQuery } from "convex/react";
 import { Trophy, Flame } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,7 +23,7 @@ export function AppHeader() {
           </h1>
         </div>
         <nav className="flex items-center gap-2">
-          <Link href="/">
+          <Link href="/home">
             <Button 
               variant="link" 
               size="sm"
@@ -32,11 +32,11 @@ export function AppHeader() {
               Courses
             </Button>
           </Link>
-          <Link href="/learn">
+          <Link href="/flashcards">
             <Button 
               variant="link" 
               size="sm"
-              className={pathname.startsWith("/learn") ? "text-blue-600 font-semibold" : "text-gray-600 hover:text-gray-900"}
+              className={pathname.startsWith("/flashcards") ? "text-blue-600 font-semibold underline" : "text-gray-600 hover:text-gray-900"}
             >
               Flashcards
             </Button>
@@ -54,9 +54,7 @@ export function AppHeader() {
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          {/* User Ranking */}
           <Authenticated>
-
           <Button
             className="flex items-center gap-1 px-3 py-1"
             variant="outline"
@@ -66,8 +64,6 @@ export function AppHeader() {
               {userRank ? `#${userRank.rank}` : "—"}
             </span>
           </Button>
-          
-          {/* User Streak */}
           <Button
             className="flex items-center gap-1 px-3 py-1"
             variant="outline"

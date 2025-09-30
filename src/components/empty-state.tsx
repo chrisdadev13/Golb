@@ -1,9 +1,9 @@
-import { Target, Trophy, Zap } from "lucide-react";
+import { BookOpen, Target, Trophy, Zap } from "lucide-react";
 import Link from "next/link";
 import { FancyButton } from "#/components/ui/fancy-button";
 
 interface EmptyStateProps {
-  type: "xp" | "courses" | "streak";
+  type: "xp" | "courses" | "streak" | "flashcards";
 }
 
 export function EmptyState({ type }: EmptyStateProps) {
@@ -11,7 +11,7 @@ export function EmptyState({ type }: EmptyStateProps) {
     switch (type) {
       case "xp":
         return {
-          icon: <Trophy className="h-12 w-12 text-gray-400" strokeWidth={1.5} />,
+          icon: <Trophy className="h-12 w-12 text-gray-400" strokeWidth={1} />,
           title: "Start Your Learning Journey",
           description: "Complete courses and earn XP to climb the leaderboard!",
           actionText: "Create Courses",
@@ -33,9 +33,16 @@ export function EmptyState({ type }: EmptyStateProps) {
           actionText: "Start Learning",
           actionHref: "/learn",
         };
+      case "flashcards":
+        return {
+          icon: <BookOpen className="h-12 w-12 text-gray-400" strokeWidth={1} />,
+          title: "No Flashcards Yet",
+          description: "Create your first flashcard set to start studying!",
+          actionText: "Create Flashcards",
+        };
       default:
         return {
-          icon: <Trophy className="h-12 w-12 text-gray-400" />,
+          icon: <Trophy className="h-12 w-12 text-gray-400" strokeWidth={1} />,
           title: "Get Started",
           description: "Begin your learning journey today!",
           actionText: "Get Started",
@@ -55,11 +62,18 @@ export function EmptyState({ type }: EmptyStateProps) {
       <p className="text-gray-500 text-sm mb-6 max-w-sm">
         {content.description}
       </p>
-      <Link href={content.actionHref}>
-        <FancyButton>
-          {content.actionText}
-        </FancyButton>
-      </Link>
+      {
+        content.actionHref ? (
+          <Link href={content.actionHref}>
+            <FancyButton>
+              {content.actionText}
+            </FancyButton>
+          </Link>
+        ) : (
+          <p>
+          </p>
+        )
+      }
     </div>
   );
 }

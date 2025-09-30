@@ -4,6 +4,7 @@ import { generateObject, generateText } from "ai";
 import { v } from "convex/values";
 import { z } from "zod";
 import {
+	FlashcardGeneratorPrompt,
 	GenerateBlocksSystemPrompt,
 	GenerateCourseDescriptionSystemPrompt,
 	GenerateCourseMetadataSystemPrompt,
@@ -17,6 +18,8 @@ import {
 	internalMutation,
 	internalQuery,
 } from "./_generated/server";
+import { Mistral } from '@mistralai/mistralai';
+
 
 // ============================================================================
 // Type Definitions
@@ -46,6 +49,81 @@ interface CourseContext {
 }
 
 export const workflow = new WorkflowManager(components.workflow);
+
+// ============================================================================
+// Flashcard Generation Workflow
+// ============================================================================
+
+export const generateFlashcardWorkflow = workflow.define({
+	args: {
+		flashcardSetId: v.id("flashcardSets"),
+		content: v.optional(v.string()),
+		sourceType: v.union(v.literal("file"), v.literal("url")),
+		documentUrl: v.optional(v.string()), // For PDF OCR processing
+		targetCount: v.optional(v.number()),
+	},
+	handler: async (step, args): Promise<string> => {
+		try {
+			// Step 1: Update status to processing
+			await step.runMutation(internal.workflow.updateFlashcardSetStatus, {
+				flashcardSetId: args.flashcardSetId,
+				status: "processing",
+			});
+
+			// Step 2: Process document if it's a file (PDF)
+			let content = args.content || "";
+			if (args.sourceType === "file" && args.documentUrl) {
+				const extractedPages = await step.runAction(
+					internal.workflow.processDocumentAction,
+					{
+						documentUrl: args.documentUrl,
+					},
+				);
+				content = extractedPages.join("\n\n");
+			}
+
+			// Step 3: Generate flashcards using AI
+			const flashcards = await step.runAction(
+				internal.workflow.generateFlashcardsAction,
+				{
+					content,
+					targetCount: args.targetCount ?? 20,
+				},
+			);
+
+			// Step 4: Save flashcards to database
+			for (const flashcard of flashcards) {
+				await step.runMutation(internal.workflow.createFlashcard, {
+					flashcardSetId: args.flashcardSetId,
+					question: flashcard.question,
+					answer: flashcard.answer,
+					questionType: flashcard.questionType,
+					difficulty: flashcard.difficulty,
+					explanation: flashcard.explanation,
+					sourceExcerpt: flashcard.sourceExcerpt,
+					orderIndex: flashcard.orderIndex,
+				});
+			}
+
+			// Step 5: Update flashcard set with final count and status
+			await step.runMutation(internal.workflow.updateFlashcardSetComplete, {
+				flashcardSetId: args.flashcardSetId,
+				cardCount: flashcards.length,
+				status: "completed",
+			});
+
+			return "Flashcard generation completed successfully";
+		} catch (error) {
+			// Mark flashcard set as failed if there's an error
+			await step.runMutation(internal.workflow.updateFlashcardSetStatus, {
+				flashcardSetId: args.flashcardSetId,
+				status: "failed",
+				errorMessage: error instanceof Error ? error.message : "Unknown error",
+			});
+			throw error;
+		}
+	},
+});
 
 export const generateCourseWorkflow = workflow.define({
 	args: {
@@ -167,15 +245,15 @@ export const generateCourseWorkflow = workflow.define({
 					}
 					// Logic to Generate Video
 
-					const summarizedBlocks = await Promise.all(blocks.map((block) => summarizeBlock(block.content)));
-					
+					const summarizedBlocks = await step.runAction(internal.workflow.summarizeBlocksAction, { blocks: blocks.map((block) => block.content) });
+
 					const payload = {
 						title: firstSection.title,
 						subject: args.subject,
 						blocks: summarizedBlocks,
 					}
 
-					const { r2_filename } = await generateVideoCourse(payload);
+					const { r2_filename } = await step.runAction(internal.workflow.generateVideoCourseAction, payload);
 
 					await step.runMutation(internal.workflow.updateSectionVideoUrl, {
 						sectionId: firstSectionId,
@@ -208,6 +286,7 @@ export const generateCourseWorkflow = workflow.define({
 			await step.runMutation(internal.workflow.updateCourseStatus, {
 				courseId: args.courseId,
 				status: toCourseStatus("failed"),
+				errorMessage: error instanceof Error ? error.message : "Unknown error",
 			});
 			throw error;
 		}
@@ -655,10 +734,12 @@ export const updateCourseStatus = internalMutation({
 			v.literal("ready"),
 			v.literal("failed"),
 		),
+		errorMessage: v.optional(v.string()),
 	},
 	handler: async (ctx, args) => {
 		await ctx.db.patch(args.courseId, {
 			status: args.status,
+			errorMessage: args.errorMessage,
 		});
 		return args.courseId;
 	},
@@ -936,42 +1017,223 @@ async function generateBlocks(
 	return object.blocks;
 }
 
-// Summarize block before sending it to the API that generates video
-async function summarizeBlock(block: string) {
-	const { text } = await generateText({
-		model: openai.responses("gpt-4o-mini"),
-		system: `You are a concise technical summarizer. Summarize the given text block into 1-2 short sentences that capture only the core concept. Be extremely brief.`,
-		prompt: `Summarize this in 1-2 sentences:\n\n${block}`,
-		temperature: 0.1,
-	});
-	return text;
-}
+/**
+ * Summarizes blocks for video generation
+ */
+export const summarizeBlocksAction = internalAction({
+	args: {
+		blocks: v.array(v.string()),
+	},
+	handler: async (_, args) => {
+		const summarized = await Promise.all(
+			args.blocks.map(async (block) => {
+				const { text } = await generateText({
+					model: openai.responses("gpt-4o-mini"),
+					system: `You are a concise technical summarizer. Summarize the given text block into 1-2 short sentences that capture only the core concept. Be extremely brief.`,
+					prompt: `Summarize this in 1-2 sentences:\n\n${block}`,
+					temperature: 0.1,
+				});
+				return text;
+			})
+		);
+		return summarized;
+	},
+});
 
 // Generate Video API
 
 const API_KEY = process.env.API_KEY as string;
 
-type Payload = {
-	title: string;
-	subject: string;
-	blocks: string[]
-}
-async function generateVideoCourse(payload: Payload): Promise<{ r2_url: string, r2_filename: string }> {
-	const response = await fetch(
-		"https://chrisdadev13--manim-course-generator-fastapi-app.modal.run/generate",
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"X-API-Key": API_KEY
-			},
-			body: JSON.stringify(payload)
+/**
+ * Internal action to generate video course via external API
+ */
+export const generateVideoCourseAction = internalAction({
+	args: {
+		title: v.string(),
+		subject: v.string(),
+		blocks: v.array(v.string()),
+	},
+	handler: async (_, args) => {
+		const response = await fetch(
+			"https://chrisdadev13--manim-course-generator-fastapi-app.modal.run/generate",
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"X-API-Key": API_KEY
+				},
+				body: JSON.stringify({
+					title: args.title,
+					subject: args.subject,
+					blocks: args.blocks,
+				})
+			}
+		);
+
+		if (!response.ok) {
+			throw new Error(`Video generation failed: ${response.statusText}`);
 		}
-	);
 
-	const data = await response.json();
+		const data = await response.json();
+		const { r2_url, r2_filename } = data as { r2_url: string, r2_filename: string };
 
-	const { r2_url, r2_filename } = data as { r2_url: string, r2_filename: string };
+		return { r2_url, r2_filename };
+	},
+});
 
-	return { r2_url, r2_filename };
+// ============================================================================
+// Flashcard Workflow - Internal Actions & Mutations
+// ============================================================================
+
+/**
+ * Generates flashcards using AI
+ */
+export const generateFlashcardsAction = internalAction({
+	args: {
+		content: v.string(),
+		targetCount: v.number(),
+	},
+	handler: async (_, args) => {
+		const { object } = await generateObject({
+			model: openai("gpt-4o"),
+			system: FlashcardGeneratorPrompt,
+			prompt: `
+			Source content: 
+			${args.content}
+
+			Target count: ${args.targetCount}
+			
+			Generate approximately ${args.targetCount} flashcards from this content.
+			`,
+			schema: z.object({
+				flashcards: z.array(
+					z.object({
+						question: z.string(),
+						answer: z.string(),
+						questionType: z.optional(
+							z.enum(["multiple_choice", "true_false", "text"]),
+						),
+						difficulty: z.optional(z.enum(["easy", "medium", "hard"])),
+						explanation: z.optional(z.string()),
+						sourceExcerpt: z.optional(z.string()),
+						orderIndex: z.number(),
+					}),
+				),
+			}),
+		});
+
+		return object.flashcards;
+	},
+});
+
+/**
+ * Updates flashcard set status
+ */
+export const updateFlashcardSetStatus = internalMutation({
+	args: {
+		flashcardSetId: v.id("flashcardSets"),
+		status: v.union(
+			v.literal("processing"),
+			v.literal("completed"),
+			v.literal("failed"),
+		),
+		errorMessage: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		await ctx.db.patch(args.flashcardSetId, {
+			status: args.status,
+			errorMessage: args.errorMessage,
+		});
+	},
+});
+
+/**
+ * Creates a flashcard
+ */
+export const createFlashcard = internalMutation({
+	args: {
+		flashcardSetId: v.id("flashcardSets"),
+		question: v.string(),
+		answer: v.string(),
+		questionType: v.optional(
+			v.union(
+				v.literal("multiple_choice"),
+				v.literal("true_false"),
+				v.literal("text"),
+			),
+		),
+		difficulty: v.optional(
+			v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+		),
+		explanation: v.optional(v.string()),
+		sourceExcerpt: v.optional(v.string()),
+		orderIndex: v.number(),
+	},
+	handler: async (ctx, args) => {
+		const flashcardId = await ctx.db.insert("flashcards", {
+			setId: args.flashcardSetId,
+			question: args.question,
+			answer: args.answer,
+			questionType: args.questionType,
+			difficulty: args.difficulty,
+			explanation: args.explanation,
+			sourceExcerpt: args.sourceExcerpt,
+			orderIndex: args.orderIndex,
+		});
+		return flashcardId;
+	},
+});
+
+/**
+ * Updates flashcard set with final count and completion status
+ */
+export const updateFlashcardSetComplete = internalMutation({
+	args: {
+		flashcardSetId: v.id("flashcardSets"),
+		cardCount: v.number(),
+		status: v.union(
+			v.literal("processing"),
+			v.literal("completed"),
+			v.literal("failed"),
+		),
+	},
+	handler: async (ctx, args) => {
+		await ctx.db.patch(args.flashcardSetId, {
+			cardCount: args.cardCount,
+			status: args.status,
+		});
+	},
+});
+
+const mistral = new Mistral({
+	apiKey: process.env.MISTRAL_API_KEY,
+});
+
+async function processDocument({
+	documentUrl,
+}: {
+	documentUrl: string;
+}) {
+	const ocrResponse = await mistral.ocr.process({
+		model: "mistral-ocr-latest",
+		document: {
+			type: "document_url",
+			documentUrl,
+		},
+		includeImageBase64: false
+	});
+
+	return ocrResponse.pages.map((page) => page.markdown);
 }
+
+/**
+ * Processes a document (PDF) using Mistral OCR
+ */
+export const processDocumentAction = internalAction({
+	args: {
+		documentUrl: v.string(),
+	},
+	handler: async (_, args) => {
+		return await processDocument({ documentUrl: args.documentUrl });
+	},
+});

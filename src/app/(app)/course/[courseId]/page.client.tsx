@@ -57,15 +57,17 @@ export function CoursePageClient() {
 					</div>
 					<div className="col-span-2">
 						{course.status === "generating" ? (
-							<div className="py-12 text-center">
-								<div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-gray-900 border-b-2" />
-								<h3 className="mb-2 font-semibold text-gray-900 text-lg">
-									Generating Course Content
-								</h3>
-								<p className="text-gray-600">
-									We're creating your personalized learning experience. This may
-									take a few minutes.
-								</p>
+							<div className="space-y-6">
+								{[1, 2, 3].map((i) => (
+									<div key={i} className="rounded-lg bg-white p-6">
+										<Skeleton className="mb-4 h-6 w-32" />
+										<div className="space-y-3">
+											<Skeleton className="h-16 w-full" />
+											<Skeleton className="h-16 w-full" />
+											<Skeleton className="h-16 w-full" />
+										</div>
+									</div>
+								))}
 							</div>
 						) : course.levels && course.levels.length > 0 ? (
 							<>
