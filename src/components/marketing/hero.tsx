@@ -2,7 +2,9 @@
 
 import { Authenticated, Unauthenticated } from "convex/react";
 import type { Variants } from "framer-motion";
+import Image from "next/image";
 import NextLink from "next/link";
+import { useState } from "react";
 import { MotionDiv } from "#/components/motion/animated-div";
 import {
   AnimatedList,
@@ -11,7 +13,16 @@ import {
 import { AnimatedTitle } from "#/components/motion/animated-title";
 import { Button } from "#/components/ui/button";
 import { Icons } from "../icons";
+import SignInForm from "../sign-in";
+import SignUpForm from "../sign-up";
 import { FancyButton } from "../ui/fancy-button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
 
 
 const list = {
@@ -32,6 +43,8 @@ const item = {
 } satisfies Variants;
 
 export function Hero() {
+  const [showSignUp, setShowSignUp] = useState(false);
+
   return (
     <section className="relative overflow-hidden px-4 pt-32 lg:pt-58">
       <AnimatedTitle className="flex flex-col items-center justify-center">
@@ -49,22 +62,50 @@ export function Hero() {
       </AnimatedTitle>
       <div className="mx-auto my-8 min-h-40 max-w-80">
         <Unauthenticated>
-          <AnimatedList variants={list} className="flex flex-col gap-3">
-            <AnimatedListItem variants={item}>
-              <FancyButton variant="default" size="lg" className="w-full">
-                <span className="truncate">Get started</span>
-              </FancyButton>
-            </AnimatedListItem>
-            <AnimatedListItem variants={item}>
-              <FancyButton
-                size="lg"
-                className="w-full bg-white shadow-[0px_1px_2px_rgba(55,50,47,0.12)] text-outline-foreground"
-                variant="outline"
-              >
-                <span className="truncate">I already have an account</span>
-              </FancyButton>
-            </AnimatedListItem>
-          </AnimatedList>
+          <Dialog>
+            <AnimatedList variants={list} className="flex flex-col gap-3">
+              <AnimatedListItem variants={item}>
+                <DialogTrigger asChild>
+                  <FancyButton
+                    variant="default"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => setShowSignUp(true)}
+                  >
+                    <span className="truncate">Get started</span>
+                  </FancyButton>
+                </DialogTrigger>
+              </AnimatedListItem>
+              <AnimatedListItem variants={item}>
+                <DialogTrigger asChild>
+                  <FancyButton
+                    size="lg"
+                    className="w-full bg-white shadow-[0px_1px_2px_rgba(55,50,47,0.12)] text-outline-foreground"
+                    variant="outline"
+                    onClick={() => setShowSignUp(false)}
+                  >
+                    <span className="truncate">I already have an account</span>
+                  </FancyButton>
+                </DialogTrigger>
+              </AnimatedListItem>
+            </AnimatedList>
+            <DialogContent>
+              <DialogHeader className="flex flex-col items-center justify-center">
+                <DialogTitle>{""}</DialogTitle>
+                <Image
+                  src="/flying.png"
+                  alt="Lets Go"
+                  width={150}
+                  height={150}
+                />
+              </DialogHeader>
+              {showSignUp ? (
+                <SignUpForm onSwitchToSignIn={() => setShowSignUp(false)} />
+              ) : (
+                <SignInForm onSwitchToSignUp={() => setShowSignUp(true)} />
+              )}
+            </DialogContent>
+          </Dialog>
         </Unauthenticated>
         <Authenticated>
           <MotionDiv
