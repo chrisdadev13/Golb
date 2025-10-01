@@ -502,7 +502,7 @@ def generate_and_render_video(course_data: dict):
             print(f"Error during attempt {attempt}: {e}")
             
             # Check if it's an ElevenLabs-related error
-            if use_voiceover and ("elevenlabs" in error_msg):
+            if use_voiceover and ("elevenlabs" in error_msg or "voiceover" in error_msg or "api" in error_msg):
                 print("⚠ ElevenLabs error detected, switching to non-voiceover mode...")
                 use_voiceover = False
                 warnings.append("Switched to non-voiceover mode due to ElevenLabs error")
