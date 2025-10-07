@@ -1,5 +1,6 @@
 import modal
 from datetime import datetime
+import time
 
 # Create a Modal app
 app = modal.App("manim-course-generator")
@@ -281,6 +282,16 @@ Biology: Custom shapes using VGroup, Line for DNA helixes, Rectangle/Circle for 
 Computer Science: Rectangle for arrays, Dot+Line for trees/graphs, Text with arrows for algorithms
 Engineering: Rectangle/Line for diagrams, Circle+Line for circuits, Arrow for flowcharts
 
+ABSOLUTE PROHIBITIONS - WILL CAUSE FAILURE
+NEVER use these - they reference external files that don't exist:
+
+❌ SVGMobject() - FORBIDDEN
+❌ ImageMobject() - FORBIDDEN
+❌ Any file paths or asset references
+❌ .svg, .png, .jpg files
+
+If you need icons/images, use ONLY built-in Manim basic primitives
+
 # Programming Rules
 
 Always use comments to explain what the next line does:
@@ -398,7 +409,7 @@ Use the same visual guidelines and constraints as the voiceover version, but wit
     ],
     timeout=900,
 )
-def generate_and_render_video(course_data: dict):
+def generate_and_render_video(course_data: dict, max_retries: int = 3):
     import os
     import boto3
     import google.generativeai as genai
@@ -431,9 +442,12 @@ def generate_and_render_video(course_data: dict):
     # Try with voiceover first if ElevenLabs is available
     use_voiceover = elevenlabs_available
     attempt = 0
-    max_attempts = 2
+    max_attempts = max(1, min(max_retries, 10))  # Clamp between 1 and 10
     scene = None
     warnings = []
+    previous_error = None
+    previous_code = None
+    error_history = []  # Track all errors for better feedback
     
     while attempt < max_attempts and scene is None:
         attempt += 1
@@ -443,16 +457,66 @@ def generate_and_render_video(course_data: dict):
         
         print(f"Attempt {attempt}: Generating {'with' if use_voiceover else 'without'} voiceover...")
         
-        # Generate Manim code using Gemini
+        # Generate Manim code using Gemini with retry logic
         model = genai.GenerativeModel('gemini-2.5-pro')
-        # Format the prompt to include manimDocs
         formatted_prompt = prompt_to_use.format(manimDocs=manimDocs)
-        prompt = f"{formatted_prompt}\n\nCourse Content:\n{course_content}\n\nGenerate the CourseScene class code:"
         
-        response = model.generate_content(prompt, generation_config=genai.types.GenerationConfig(
-            temperature=0.1,
-        ))
-        manim_code = response.text.strip()
+        # Build the prompt - include error feedback if this is a retry
+        if previous_error and previous_code:
+            # Build comprehensive error feedback
+            error_feedback = f"PREVIOUS ATTEMPT #{attempt - 1} FAILED\n"
+            error_feedback += f"Error: {previous_error}\n\n"
+            error_feedback += "Previous code that failed:\n```python\n"
+            error_feedback += previous_code
+            error_feedback += "\n```\n\n"
+            
+            # Add specific guidance based on error type
+            error_lower = previous_error.lower()
+            if "get_part_by_tex" in error_lower and "index" in error_lower:
+                error_feedback += "HINT: get_part_by_tex() does NOT accept 'index' parameter. Use direct indexing like equation[0] instead.\n"
+            elif "svgmobject" in error_lower or "imagemobject" in error_lower:
+                error_feedback += "HINT: Do NOT use SVGMobject or ImageMobject. Use only built-in Manim primitives.\n"
+            elif "elevenlabs" in error_lower or "voiceover" in error_lower:
+                error_feedback += "HINT: ElevenLabs API might be unavailable. Consider generating without voiceover.\n"
+            elif "attributeerror" in error_lower:
+                error_feedback += "HINT: Check that all methods and attributes exist in Manim. Refer to the documentation.\n"
+            elif "syntaxerror" in error_lower or "indentation" in error_lower:
+                error_feedback += "HINT: Fix syntax errors and ensure proper Python indentation.\n"
+            
+            # Include error history if multiple attempts
+            if len(error_history) > 1:
+                error_feedback += f"\nPrevious {len(error_history) - 1} attempt(s) also failed. Avoid repeating the same mistakes.\n"
+            
+            prompt = f"{formatted_prompt}\n\nCourse Content:\n{course_content}\n\n{error_feedback}\nPlease fix ALL errors and generate corrected CourseScene class code:"
+            print(f"  Including detailed error feedback from attempt {attempt - 1} for LLM to fix...")
+        else:
+            prompt = f"{formatted_prompt}\n\nCourse Content:\n{course_content}\n\nGenerate the CourseScene class code:"
+        
+        # Retry logic for Gemini API call
+        max_retries = 3
+        retry_delay = 2  # seconds
+        manim_code = None
+        
+        for retry in range(max_retries):
+            try:
+                print(f"  Gemini API call attempt {retry + 1}/{max_retries}...")
+                response = model.generate_content(prompt, generation_config=genai.types.GenerationConfig(
+                    temperature=0.1,
+                ))
+                manim_code = response.text.strip()
+                print("  ✓ Gemini API call successful")
+                break
+            except Exception as e:
+                print(f"  ✗ Gemini API error (attempt {retry + 1}/{max_retries}): {e}")
+                if retry < max_retries - 1:
+                    wait_time = retry_delay * (2 ** retry)  # Exponential backoff
+                    print(f"  Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    raise Exception(f"Failed to generate code after {max_retries} attempts: {e}")
+        
+        if not manim_code:
+            raise Exception("Failed to generate Manim code from Gemini")
         
         # Clean up the code (remove markdown if present)
         if "```python" in manim_code:
@@ -485,13 +549,33 @@ def generate_and_render_video(course_data: dict):
             if not scene_class:
                 raise Exception("Generated code must define a class named 'CourseScene'")
             
-            # Try to render the scene
+            # Try to render the scene with retry logic
             print("Rendering Manim scene...")
             config.media_dir = "/tmp/manim"
             config.output_file = "output"
             
-            scene = scene_class()
-            scene.render()
+            # Retry logic for scene rendering
+            max_render_retries = 2
+            render_success = False
+            
+            for render_retry in range(max_render_retries):
+                try:
+                    print(f"  Render attempt {render_retry + 1}/{max_render_retries}...")
+                    scene = scene_class()
+                    scene.render()
+                    render_success = True
+                    print(f"  ✓ Render successful")
+                    break
+                except Exception as render_error:
+                    print(f"  ✗ Render error (attempt {render_retry + 1}/{max_render_retries}): {render_error}")
+                    if render_retry < max_render_retries - 1:
+                        print(f"  Retrying render...")
+                        time.sleep(1)
+                    else:
+                        raise render_error
+            
+            if not render_success:
+                raise Exception("Failed to render scene after all retry attempts")
             
             print(f"✓ Successfully rendered {'with' if use_voiceover else 'without'} voiceover")
             if not use_voiceover:
@@ -499,7 +583,17 @@ def generate_and_render_video(course_data: dict):
             
         except Exception as e:
             error_msg = str(e).lower()
-            print(f"Error during attempt {attempt}: {e}")
+            error_str = str(e)
+            print(f"Error during attempt {attempt}/{max_attempts}: {e}")
+            
+            # Store error and code for next attempt
+            previous_error = error_str
+            previous_code = manim_code
+            error_history.append({
+                'attempt': attempt,
+                'error': error_str,
+                'error_type': type(e).__name__
+            })
             
             # Check if it's an ElevenLabs-related error
             if use_voiceover and ("elevenlabs" in error_msg or "voiceover" in error_msg or "api" in error_msg):
@@ -507,10 +601,17 @@ def generate_and_render_video(course_data: dict):
                 use_voiceover = False
                 warnings.append("Switched to non-voiceover mode due to ElevenLabs error")
                 scene = None  # Reset to retry
+            elif attempt < max_attempts:
+                # Other error, but we have attempts left - let LLM fix it
+                print(f"⚠ Error encountered, will retry with error feedback to LLM (attempt {attempt + 1}/{max_attempts})...")
+                scene = None  # Reset to retry
             else:
-                # Other error, don't retry
+                # No more attempts left
                 print(f"Generated code:\n{manim_code}")
-                raise Exception(f"Failed to execute/render Manim code: {e}")
+                error_summary = f"Failed after {max_attempts} attempts. Error history: "
+                for i, err in enumerate(error_history, 1):
+                    error_summary += f"\n  Attempt {i}: {err['error_type']} - {err['error'][:100]}..."
+                raise Exception(error_summary)
     
     if scene is None:
         raise Exception("Failed to generate video after all attempts")
@@ -518,7 +619,7 @@ def generate_and_render_video(course_data: dict):
     video_path = f"{config.media_dir}/videos/1080p60/output.mp4"
     print(f"Reading video from: {video_path}")
     
-    # Upload to R2
+    # Upload to R2 with retry logic
     print("Uploading to Cloudflare R2...")
     s3_client = boto3.client(
         's3',
@@ -533,15 +634,30 @@ def generate_and_render_video(course_data: dict):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     r2_filename = f"videos/{safe_title}_{timestamp}.mp4"
     
-    with open(video_path, "rb") as video_file:
-        s3_client.upload_fileobj(
-            video_file,
-            os.environ["R2_STORAGE_BUCKET_NAME"],
-            r2_filename,
-            ExtraArgs={'ContentType': 'video/mp4'}
-        )
+    # Retry logic for R2 upload
+    max_upload_retries = 3
+    upload_retry_delay = 2
     
-    print(f"✓ Uploaded to R2: {r2_filename}")
+    for upload_retry in range(max_upload_retries):
+        try:
+            print(f"  Upload attempt {upload_retry + 1}/{max_upload_retries}...")
+            with open(video_path, "rb") as video_file:
+                s3_client.upload_fileobj(
+                    video_file,
+                    os.environ["R2_STORAGE_BUCKET_NAME"],
+                    r2_filename,
+                    ExtraArgs={'ContentType': 'video/mp4'}
+                )
+            print(f"✓ Uploaded to R2: {r2_filename}")
+            break
+        except Exception as upload_error:
+            print(f"  ✗ Upload error (attempt {upload_retry + 1}/{max_upload_retries}): {upload_error}")
+            if upload_retry < max_upload_retries - 1:
+                wait_time = upload_retry_delay * (2 ** upload_retry)
+                print(f"  Retrying upload in {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                raise Exception(f"Failed to upload to R2 after {max_upload_retries} attempts: {upload_error}")
     
     r2_url = f"{os.environ['R2_STORAGE_BASE_URL']}/{r2_filename}"
     
@@ -551,10 +667,16 @@ def generate_and_render_video(course_data: dict):
         "status": "success",
         "message": "Video generated and uploaded successfully!",
         "has_voiceover": use_voiceover,
+        "attempts_used": attempt,
+        "max_attempts": max_attempts,
     }
     
     if warnings:
         result["warnings"] = warnings
+    
+    if attempt > 1:
+        result["regenerated"] = True
+        result["regeneration_count"] = attempt - 1
     
     return result
 
@@ -611,7 +733,8 @@ def fastapi_app():
                 "Block 1 content...",
                 "Block 2 content...",
                 ...
-            ]
+            ],
+            "max_retries": 3  // Optional: Maximum retry attempts (1-10, default: 3)
         }
         """
         verify_api_key(api_key)
@@ -623,7 +746,17 @@ def fastapi_app():
                     detail="Missing required fields: 'title' and 'blocks'"
                 )
             
-            result = generate_and_render_video.remote(data)
+            # Extract max_retries from data if provided, otherwise use default
+            max_retries = data.get("max_retries", 3)
+            
+            # Create course_data dict without max_retries
+            course_data = {
+                "title": data["title"],
+                "blocks": data["blocks"],
+                "subject": data.get("subject", "")
+            }
+            
+            result = generate_and_render_video.remote(course_data, max_retries=max_retries)
             return result
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

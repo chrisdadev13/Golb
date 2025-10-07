@@ -454,6 +454,12 @@ export const generateBlocksWorkflow = workflow.define({
         });
       }
 
+      // Update section status to in_progress when generation is complete
+      await step.runMutation(internal.workflow.updateSectionStatus, {
+        sectionId: args.sectionId,
+        status: toSectionStatus("in_progress"),
+      });
+
       // Logic to Generate Video
       const summarizedBlocks = await step.runAction(
         internal.workflow.summarizeBlocksAction,
@@ -474,12 +480,6 @@ export const generateBlocksWorkflow = workflow.define({
       await step.runMutation(internal.workflow.updateSectionVideoUrl, {
         sectionId: args.sectionId,
         videoUrl: `https://pub-a20860b4624741878bf5736392e03d84.r2.dev/chris-bridge/${r2_filename}`,
-      });
-
-      // Update section status to in_progress when generation is complete
-      await step.runMutation(internal.workflow.updateSectionStatus, {
-        sectionId: args.sectionId,
-        status: toSectionStatus("in_progress"),
       });
     } catch (error) {
       // Reset section status if generation fails
